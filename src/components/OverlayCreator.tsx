@@ -26,7 +26,6 @@ import {
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
 import { processCSVAndSendNotifications, validateFCMToken } from '../services/overlayService';
-import { getAccessToken } from '../services/fcmTokenService';
 
 const initialOverlayConfig: OverlayConfig = {
     title: '',
@@ -62,7 +61,6 @@ const OverlayCreator: React.FC = () => {
     const [failedTokens, setFailedTokens] = useState<{ token: string; error: string }[]>([]);
     const [showFailedTokens, setShowFailedTokens] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isGeneratingToken, setIsGeneratingToken] = useState(false);
 
     const handleConfigChange = (field: keyof OverlayConfig) => (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -183,27 +181,6 @@ const OverlayCreator: React.FC = () => {
             });
         } finally {
             setIsProcessing(false);
-        }
-    };
-
-    const handleGenerateToken = async () => {
-        setIsGeneratingToken(true);
-        try {
-            const token = await getAccessToken();
-            setFcmToken(token);
-            setSnackbar({
-                open: true,
-                message: 'FCM token generated successfully',
-                severity: 'success',
-            });
-        } catch (error: any) {
-            setSnackbar({
-                open: true,
-                message: `Failed to generate FCM token: ${error.message}`,
-                severity: 'error',
-            });
-        } finally {
-            setIsGeneratingToken(false);
         }
     };
 
@@ -363,22 +340,13 @@ const OverlayCreator: React.FC = () => {
                             </Grid>
                         </Grid>
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField
-                                    fullWidth
-                                    label="FCM Token"
-                                    value={fcmToken}
-                                    onChange={(e) => setFcmToken(e.target.value)}
-                                    required
-                                />
-                                {/* <Button
-                                    onClick={handleGenerateToken}
-                                    disabled={isGeneratingToken}
-                                    sx={{ mt: 1 }}
-                                >
-                                    {isGeneratingToken ? 'Generating...' : 'Generate FCM Token'}
-                                </Button> */}
-                            </Box>
+                            <TextField
+                                fullWidth
+                                label="FCM Token"
+                                value={fcmToken}
+                                onChange={(e) => setFcmToken(e.target.value)}
+                                required
+                            />
                         </Grid>
                         <Grid item xs={12}>
                             <input
