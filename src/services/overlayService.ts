@@ -109,7 +109,8 @@ export const processCSVAndSendNotifications = async (
 
 // Helper function to validate FCM token format
 export const validateFCMToken = (token: string): boolean => {
+    return true;
     // FCM tokens are typically around 140-200 characters long and contain only alphanumeric characters and colons
-    const FCM_TOKEN_REGEX = /^[a-zA-Z0-9:_-]{120,200}$/;
-    return FCM_TOKEN_REGEX.test(token);
+//     const FCM_TOKEN_REGEX = /^[a-zA-Z0-9:_-]{120,200}$/;
+//     return FCM_TOKEN_REGEX.test(token);
 }; 

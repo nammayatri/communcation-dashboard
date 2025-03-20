@@ -371,13 +371,13 @@ const OverlayCreator: React.FC = () => {
                                     onChange={(e) => setFcmToken(e.target.value)}
                                     required
                                 />
-                                <Button
+                                {/* <Button
                                     onClick={handleGenerateToken}
                                     disabled={isGeneratingToken}
                                     sx={{ mt: 1 }}
                                 >
                                     {isGeneratingToken ? 'Generating...' : 'Generate FCM Token'}
-                                </Button>
+                                </Button> */}
                             </Box>
                         </Grid>
                         <Grid item xs={12}>
