@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Container, CssBaseline, ThemeProvider, createTheme, Box } from '@mui/material';
 import OverlayCreator from './components/OverlayCreator';
 

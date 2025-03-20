@@ -366,19 +366,18 @@ const OverlayCreator: React.FC = () => {
                             <Box sx={{ display: 'flex', gap: 2 }}>
                                 <TextField
                                     fullWidth
-                                    label="FCM Authentication Token"
+                                    label="FCM Token"
                                     value={fcmToken}
                                     onChange={(e) => setFcmToken(e.target.value)}
                                     required
                                 />
-                                {/* <Button
-                                    variant="contained"
+                                <Button
                                     onClick={handleGenerateToken}
                                     disabled={isGeneratingToken}
-                                    sx={{ whiteSpace: 'nowrap' }}
+                                    sx={{ mt: 1 }}
                                 >
-                                    {isGeneratingToken ? 'Generating...' : 'Generate Token'}
-                                </Button> */}
+                                    {isGeneratingToken ? 'Generating...' : 'Generate FCM Token'}
+                                </Button>
                             </Box>
                         </Grid>
                         <Grid item xs={12}>
