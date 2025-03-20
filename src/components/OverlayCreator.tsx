@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
-import { processCSVAndSendNotifications, validateFCMToken } from '../services/overlayService';
+import { processCSVAndSendNotifications } from '../services/overlayService';
 
 const initialOverlayConfig: OverlayConfig = {
     title: '',
@@ -107,15 +107,6 @@ const OverlayCreator: React.FC = () => {
             setSnackbar({
                 open: true,
                 message: 'Please enter FCM authentication token',
-                severity: 'error',
-            });
-            return false;
-        }
-
-        if (!validateFCMToken(fcmToken)) {
-            setSnackbar({
-                open: true,
-                message: 'Invalid FCM token format',
                 severity: 'error',
             });
             return false;
