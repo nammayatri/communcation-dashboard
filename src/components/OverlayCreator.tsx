@@ -333,7 +333,9 @@ const OverlayCreator: React.FC = () => {
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="FCM Token"
+                                label="FCM OAuth Token"
+                                placeholder="Bearer ya29.a0AfB_..."
+                                helperText="Enter the complete OAuth 2.0 token including 'Bearer' prefix"
                                 value={fcmToken}
                                 onChange={(e) => setFcmToken(e.target.value)}
                                 required

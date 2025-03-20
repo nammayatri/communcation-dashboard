@@ -71,7 +71,7 @@ export const processCSVAndSendNotifications = async (
                             await axios.post(FCM_ENDPOINT, payload, {
                                 headers: {
                                     'Content-Type': 'application/json',
-                                    Authorization: `Bearer ${fcmAuthToken}`,
+                                    'Authorization': fcmAuthToken.startsWith('Bearer ') ? fcmAuthToken : `Bearer ${fcmAuthToken}`
                                 },
                             });
                             results.success++;
