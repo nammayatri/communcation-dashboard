@@ -15,6 +15,7 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ config }) => {
                 mx: 'auto',
                 overflow: 'hidden',
                 borderRadius: 4,
+                padding: 2,
                 bgcolor: 'white',
                 boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
             }}
@@ -72,7 +73,7 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ config }) => {
                                 py: 1.5,
                                 bgcolor: '#2F2F3A',
                                 color: '#FFB800',
-                                borderRadius: 0,
+                                borderRadius: 2,
                                 fontSize: '1rem',
                                 '&:hover': {
                                     bgcolor: '#23232B',
