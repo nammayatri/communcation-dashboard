@@ -25,10 +25,14 @@ import {
     LinearProgress,
     Chip,
     Paper,
+    Tabs,
+    Tab,
+    Divider,
 } from '@mui/material';
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
 import { processCSVAndSendNotifications } from '../services/overlayService';
+import { parseServiceAccountFile, generateFCMTokenFromServiceAccount } from '../services/firebaseTokenService';
 
 const initialOverlayConfig: OverlayConfig = {
     title: '',
@@ -75,6 +79,9 @@ const OverlayCreator: React.FC = () => {
         failed: 0,
         percentage: 0,
     });
+    const [authMethod, setAuthMethod] = useState<'token' | 'serviceAccount'>('token');
+    const [serviceAccountFile, setServiceAccountFile] = useState<File | null>(null);
+    const [isGeneratingToken, setIsGeneratingToken] = useState(false);
 
     const handleConfigChange = (field: keyof OverlayConfig) => (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -107,6 +114,50 @@ const OverlayCreator: React.FC = () => {
         }
     };
 
+    const handleServiceAccountUpload = (event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setServiceAccountFile(event.target.files[0]);
+        }
+    };
+
+    const handleGenerateFCMToken = async () => {
+        if (!serviceAccountFile) {
+            setSnackbar({
+                open: true,
+                message: 'Please upload a service account JSON file',
+                severity: 'error',
+            });
+            return;
+        }
+
+        setIsGeneratingToken(true);
+        setSnackbar({
+            open: true,
+            message: 'Generating FCM token from service account...',
+            severity: 'info',
+        });
+
+        try {
+            const serviceAccount = await parseServiceAccountFile(serviceAccountFile);
+            const token = await generateFCMTokenFromServiceAccount(serviceAccount);
+            
+            setFcmToken(token);
+            setSnackbar({
+                open: true,
+                message: 'FCM token generated successfully',
+                severity: 'success',
+            });
+        } catch (error: any) {
+            setSnackbar({
+                open: true,
+                message: `Error: ${error.message}`,
+                severity: 'error',
+            });
+        } finally {
+            setIsGeneratingToken(false);
+        }
+    };
+
     const validateInputs = (): boolean => {
         if (!csvFile) {
             setSnackbar({
@@ -120,7 +171,7 @@ const OverlayCreator: React.FC = () => {
         if (!fcmToken) {
             setSnackbar({
                 open: true,
-                message: 'Please enter FCM authentication token',
+                message: 'Please enter FCM authentication token or generate one from service account',
                 severity: 'error',
             });
             return false;
@@ -368,17 +419,102 @@ const OverlayCreator: React.FC = () => {
                             </Grid>
                         </Grid>
                         <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="FCM OAuth Token"
-                                placeholder="Bearer ya29.a0AfB_..."
-                                helperText="Enter the complete OAuth 2.0 token including 'Bearer' prefix"
-                                value={fcmToken}
-                                onChange={(e) => setFcmToken(e.target.value)}
-                                required
-                            />
+                            <Typography variant="h6" gutterBottom>
+                                Authentication
+                            </Typography>
+                            
+                            <Tabs 
+                                value={authMethod} 
+                                onChange={(_, newValue) => setAuthMethod(newValue)}
+                                sx={{ mb: 2 }}
+                            >
+                                <Tab value="token" label="FCM Token" />
+                                <Tab value="serviceAccount" label="Service Account" />
+                            </Tabs>
+                            
+                            {authMethod === 'token' ? (
+                                <TextField
+                                    fullWidth
+                                    label="FCM OAuth Token"
+                                    placeholder="Bearer ya29.a0AfB_..."
+                                    helperText="Enter the complete OAuth 2.0 token including 'Bearer' prefix"
+                                    value={fcmToken}
+                                    onChange={(e) => setFcmToken(e.target.value)}
+                                    required
+                                />
+                            ) : (
+                                <Box>
+                                    <input
+                                        accept=".json"
+                                        style={{ display: 'none' }}
+                                        id="service-account-file"
+                                        type="file"
+                                        onChange={handleServiceAccountUpload}
+                                    />
+                                    <label htmlFor="service-account-file">
+                                        <Button
+                                            variant="outlined"
+                                            component="span"
+                                            sx={{ mr: 2 }}
+                                        >
+                                            Upload Service Account JSON
+                                        </Button>
+                                    </label>
+                                    {serviceAccountFile && (
+                                        <Typography
+                                            component="span"
+                                            variant="body2"
+                                            color="textSecondary"
+                                        >
+                                            {serviceAccountFile.name}
+                                        </Typography>
+                                    )}
+                                    
+                                    <Box sx={{ mt: 2 }}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={handleGenerateFCMToken}
+                                            disabled={!serviceAccountFile || isGeneratingToken}
+                                            sx={{ mr: 2 }}
+                                        >
+                                            {isGeneratingToken ? 'Generating...' : 'Generate FCM Token'}
+                                        </Button>
+                                        
+                                        {fcmToken && (
+                                            <Chip 
+                                                label="Token Generated" 
+                                                color="success" 
+                                                size="small"
+                                            />
+                                        )}
+                                    </Box>
+                                    
+                                    {fcmToken && (
+                                        <TextField
+                                            fullWidth
+                                            margin="normal"
+                                            label="Generated FCM Token"
+                                            value={fcmToken}
+                                            InputProps={{ readOnly: true }}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{ 
+                                                mt: 1,
+                                                '& .MuiInputBase-input': { 
+                                                    fontFamily: 'monospace',
+                                                    fontSize: '0.8rem' 
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </Box>
+                            )}
                         </Grid>
                         <Grid item xs={12}>
+                            <Divider sx={{ my: 2 }} />
+                            <Typography variant="h6" gutterBottom>
+                                Device Tokens
+                            </Typography>
                             <input
                                 accept=".csv"
                                 style={{ display: 'none' }}

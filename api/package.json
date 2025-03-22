@@ -1,0 +1,7 @@
+{
+  "name": "communication-dashboard-api",
+  "type": "commonjs",
+  "dependencies": {
+    "google-auth-library": "^9.4.2"
+  }
+} 

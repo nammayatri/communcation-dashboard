@@ -52,3 +52,69 @@ export default tseslint.config({
   },
 })
 ```
+
+# Communication Dashboard
+
+A React-based dashboard for managing overlay notifications via Firebase Cloud Messaging (FCM).
+
+## Features
+
+- Configure and send overlay notifications to devices
+- Upload CSV files containing FCM device tokens
+- Preview overlay notifications before sending
+- Track success/failure rates with detailed error reporting
+- Two authentication options:
+  - Directly provide an FCM OAuth token
+  - Upload a Firebase service account JSON file to generate an FCM token
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Authentication Options
+
+### Direct FCM Token
+You can directly provide an FCM OAuth token obtained from the Google Cloud Platform. This token should include the "Bearer" prefix.
+
+### Service Account JSON
+Alternatively, you can upload a Firebase service account JSON file, which the application can use to generate an FCM token. 
+
+**Important Note:** The service account authentication method requires a backend implementation. The frontend code includes placeholders for making API calls to a server endpoint that would handle JWT signing using the service account's private key. For security reasons, private keys should never be processed directly in the browser.
+
+#### Backend Implementation Requirements
+
+To fully implement the service account authentication method, you need to:
+
+1. Create a server endpoint (e.g., `/api/generate-fcm-token`) that:
+   - Accepts service account details
+   - Creates and signs a JWT with the appropriate claims
+   - Exchanges the JWT for an OAuth token via Google's token endpoint
+   - Returns the token to the frontend
+
+2. Update the `generateFCMTokenFromServiceAccount` function in `src/services/firebaseTokenService.ts` to call your backend endpoint instead of throwing an error.
+
+## Usage
+
+1. Choose your authentication method (FCM Token or Service Account)
+2. Configure your overlay notification (title, description, actions, etc.)
+3. Upload a CSV file containing FCM device tokens
+4. Click "Send Overlay" to dispatch the notifications
+5. View results and any errors in the summary dialog
+
+## CSV Format
+
+The CSV file should contain a column named "token" with FCM device tokens:
+
+```csv
+token
+cGz0BFK5QA:APA91bG...
+f-VQiQTQRGS:APA91bF...
+```
