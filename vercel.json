@@ -8,17 +8,32 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "buildCommand": "npm run vercel-build",
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.cjs"
+      "dest": "/server.cjs"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/dist/assets/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/dist/favicon.ico"
+    },
+    {
+      "src": "/(.*)\\.(.+)",
+      "dest": "/dist/$1.$2"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/dist/index.html"
     }
   ],
   "github": {
