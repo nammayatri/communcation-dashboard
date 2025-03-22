@@ -22,6 +22,9 @@ import {
     List,
     ListItem,
     ListItemText,
+    LinearProgress,
+    Chip,
+    Paper,
 } from '@mui/material';
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
@@ -61,6 +64,17 @@ const OverlayCreator: React.FC = () => {
     const [failedTokens, setFailedTokens] = useState<{ token: string; error: string }[]>([]);
     const [showFailedTokens, setShowFailedTokens] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [progress, setProgress] = useState<{
+        total: number;
+        success: number;
+        failed: number;
+        percentage: number;
+    }>({
+        total: 0,
+        success: 0,
+        failed: 0,
+        percentage: 0,
+    });
 
     const handleConfigChange = (field: keyof OverlayConfig) => (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -139,6 +153,12 @@ const OverlayCreator: React.FC = () => {
         }
 
         setIsProcessing(true);
+        setProgress({
+            total: 0,
+            success: 0,
+            failed: 0,
+            percentage: 0,
+        });
         setSnackbar({
             open: true,
             message: 'Processing notifications...',
@@ -149,7 +169,15 @@ const OverlayCreator: React.FC = () => {
             const result = await processCSVAndSendNotifications(
                 csvFile!,
                 config,
-                fcmToken
+                fcmToken,
+                (progressUpdate) => {
+                    setProgress({
+                        total: progressUpdate.total,
+                        success: progressUpdate.success,
+                        failed: progressUpdate.failed,
+                        percentage: Math.floor((progressUpdate.processed / progressUpdate.total) * 100)
+                    });
+                }
             );
 
             setFailedTokens(result.failedTokens);
@@ -174,6 +202,15 @@ const OverlayCreator: React.FC = () => {
             setIsProcessing(false);
         }
     };
+
+    // Group errors by type
+    const groupedErrors = failedTokens.reduce((acc, curr) => {
+        if (!acc[curr.error]) {
+            acc[curr.error] = [];
+        }
+        acc[curr.error].push(curr.token);
+        return acc;
+    }, {} as Record<string, string[]>);
 
     return (
         <Box sx={{ display: 'flex', gap: 2, p: 2 }}>
@@ -368,7 +405,87 @@ const OverlayCreator: React.FC = () => {
                                 </Typography>
                             )}
                         </Grid>
-                        <Grid item xs={12}>
+                        {isProcessing && (
+                            <Grid item xs={12}>
+                                <Paper elevation={3} sx={{ p: 2, mt: 2, mb: 2, backgroundColor: 'rgba(245, 245, 245, 0.9)' }}>
+                                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                                        Processing Notifications
+                                        <Chip 
+                                            label={`${progress.percentage}%`} 
+                                            color="primary" 
+                                            sx={{ ml: 2, fontWeight: 'bold' }} 
+                                            size="small"
+                                        />
+                                    </Typography>
+                                    
+                                    <LinearProgress 
+                                        variant="determinate" 
+                                        value={progress.percentage} 
+                                        sx={{ 
+                                            height: 10, 
+                                            borderRadius: 5,
+                                            mb: 2,
+                                            '& .MuiLinearProgress-bar': {
+                                                borderRadius: 5
+                                            }
+                                        }} 
+                                    />
+                                    
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-around', 
+                                        alignItems: 'center',
+                                        mt: 1
+                                    }}>
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                                Total
+                                            </Typography>
+                                            <Chip 
+                                                label={progress.total} 
+                                                variant="outlined" 
+                                                sx={{ minWidth: '80px' }}
+                                            />
+                                        </Box>
+                                        
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                                Success
+                                            </Typography>
+                                            <Chip 
+                                                label={progress.success} 
+                                                color="success" 
+                                                sx={{ minWidth: '80px' }}
+                                            />
+                                        </Box>
+                                        
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                                Failed
+                                            </Typography>
+                                            <Chip 
+                                                label={progress.failed} 
+                                                color="error"
+                                                sx={{ minWidth: '80px' }}
+                                            />
+                                        </Box>
+                                        
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                                Processed
+                                            </Typography>
+                                            <Chip 
+                                                label={`${progress.success + progress.failed}/${progress.total}`}
+                                                color="primary"
+                                                variant="outlined"
+                                                sx={{ minWidth: '80px' }}
+                                            />
+                                        </Box>
+                                    </Box>
+                                </Paper>
+                            </Grid>
+                        )}
+                        <Grid item xs={12} sx={{ mt: 2 }}>
                             <Button
                                 variant="contained"
                                 color="primary"
@@ -409,21 +526,135 @@ const OverlayCreator: React.FC = () => {
                 maxWidth="md"
                 fullWidth
             >
-                <DialogTitle>Failed Notifications</DialogTitle>
-                <DialogContent>
-                    <List>
-                        {failedTokens.map((item, index) => (
-                            <ListItem key={index}>
-                                <ListItemText
-                                    primary={`Token: ${item.token}`}
-                                    secondary={`Error: ${item.error}`}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
+                <DialogTitle sx={{ bgcolor: '#f8f8f8', borderBottom: '1px solid #eee' }}>
+                    <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                        Notification Results Summary
+                        {progress.failed > 0 && (
+                            <Chip 
+                                label={`${progress.failed} Failed`} 
+                                color="error" 
+                                size="small"
+                                sx={{ ml: 2 }}
+                            />
+                        )}
+                    </Typography>
+                </DialogTitle>
+                <DialogContent sx={{ pb: 1, pt: 3 }}>
+                    <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
+                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>
+                            Overall Statistics
+                        </Typography>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            gap: 2, 
+                            flexWrap: 'wrap', 
+                            justifyContent: 'space-around' 
+                        }}>
+                            <Chip 
+                                label={`Total: ${progress.total}`} 
+                                variant="outlined" 
+                                icon={<span style={{ marginLeft: '8px' }}>📊</span>}
+                            />
+                            <Chip 
+                                label={`Success: ${progress.success}`} 
+                                color="success" 
+                                variant="outlined"
+                                icon={<span style={{ marginLeft: '8px' }}>✅</span>}
+                            />
+                            <Chip 
+                                label={`Failed: ${progress.failed}`} 
+                                color="error" 
+                                variant="outlined"
+                                icon={<span style={{ marginLeft: '8px' }}>❌</span>}
+                            />
+                            <Chip 
+                                label={`Success Rate: ${Math.round((progress.success / progress.total) * 100)}%`} 
+                                color={progress.success > progress.failed ? "success" : "error"}
+                                icon={<span style={{ marginLeft: '8px' }}>📈</span>}
+                            />
+                        </Box>
+                    </Box>
+                    
+                    {Object.keys(groupedErrors).length > 0 ? (
+                        <>
+                            <Typography variant="subtitle1" gutterBottom sx={{ 
+                                fontWeight: 'medium',
+                                mt: 2,
+                                mb: 2
+                            }}>
+                                Errors by Type
+                            </Typography>
+                            {Object.entries(groupedErrors).map(([error, tokens], index) => (
+                                <Paper key={index} elevation={2} sx={{ p: 2, mb: 3, borderLeft: '4px solid #f44336' }}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        mb: 1
+                                    }}>
+                                        <Typography variant="subtitle1" color="error" sx={{ fontWeight: 'medium' }}>
+                                            {error}
+                                        </Typography>
+                                        <Chip 
+                                            label={`${tokens.length} device${tokens.length > 1 ? 's' : ''}`} 
+                                            color="error" 
+                                            size="small"
+                                            variant="outlined"
+                                        />
+                                    </Box>
+                                    <Box sx={{ 
+                                        maxHeight: '150px', 
+                                        overflow: 'auto',
+                                        border: '1px solid #eee',
+                                        borderRadius: 1,
+                                        mt: 1
+                                    }}>
+                                        <List dense disablePadding>
+                                            {tokens.map((token, tokenIndex) => (
+                                                <ListItem 
+                                                    key={tokenIndex} 
+                                                    divider={tokenIndex < tokens.length - 1}
+                                                    sx={{ 
+                                                        py: 0.5,
+                                                        bgcolor: tokenIndex % 2 === 0 ? 'transparent' : '#f9f9f9'
+                                                    }}
+                                                >
+                                                    <ListItemText 
+                                                        primary={token}
+                                                        primaryTypographyProps={{
+                                                            variant: 'body2',
+                                                            sx: { fontFamily: 'monospace' }
+                                                        }}
+                                                    />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    </Box>
+                                </Paper>
+                            ))}
+                        </>
+                    ) : (
+                        <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center', 
+                            py: 4
+                        }}>
+                            <Typography variant="h6" color="success.main" gutterBottom>
+                                All notifications sent successfully!
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                                {progress.total} notifications were processed without any errors.
+                            </Typography>
+                        </Box>
+                    )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowFailedTokens(false)}>
+                <DialogActions sx={{ borderTop: '1px solid #eee', p: 2 }}>
+                    <Button 
+                        onClick={() => setShowFailedTokens(false)}
+                        variant="contained"
+                    >
                         Close
                     </Button>
                 </DialogActions>

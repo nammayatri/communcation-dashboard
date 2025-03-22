@@ -10,10 +10,18 @@ interface NotificationResult {
     failedTokens: { token: string; error: string }[];
 }
 
+interface ProgressUpdate {
+    total: number;
+    processed: number;
+    success: number;
+    failed: number;
+}
+
 export const processCSVAndSendNotifications = async (
     file: File,
     config: OverlayConfig,
-    fcmAuthToken: string
+    fcmAuthToken: string,
+    onProgress?: (update: ProgressUpdate) => void
 ): Promise<NotificationResult> => {
     return new Promise((resolve, reject) => {
         const results: NotificationResult = {
@@ -33,6 +41,19 @@ export const processCSVAndSendNotifications = async (
 
                     if (tokens.length === 0) {
                         throw new Error('No valid tokens found in CSV file');
+                    }
+
+                    // Initialize progress
+                    const totalTokens = tokens.length;
+                    let processedCount = 0;
+                    
+                    if (onProgress) {
+                        onProgress({
+                            total: totalTokens,
+                            processed: 0,
+                            success: 0,
+                            failed: 0
+                        });
                     }
 
                     const notificationJson = {
@@ -82,10 +103,21 @@ export const processCSVAndSendNotifications = async (
                                 error: error.response?.data?.error?.message || error.message,
                             });
                         }
+                        
+                        // Update processed count and report progress
+                        processedCount++;
+                        if (onProgress) {
+                            onProgress({
+                                total: totalTokens,
+                                processed: processedCount,
+                                success: results.success,
+                                failed: results.failed
+                            });
+                        }
                     };
 
                     // Process notifications in batches
-                    const batchSize = 50;
+                    const batchSize = 20; // Smaller batch size for more frequent updates
                     for (let i = 0; i < tokens.length; i += batchSize) {
                         const batch = tokens.slice(i, i + batchSize);
                         await Promise.all(batch.map(sendNotification));
