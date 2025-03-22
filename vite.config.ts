@@ -5,7 +5,8 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Remove any base path for Vercel deployment
+  // Make sure we use root-relative paths for assets
+  base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
