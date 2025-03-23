@@ -13,7 +13,7 @@ import {
   // FormControl,
   // InputLabel,
   // SelectChangeEvent,
-  Badge,
+  // Badge,
   Chip,
   styled,
   ListSubheader,
@@ -269,23 +269,7 @@ const ProfileMenu: React.FC = () => {
             aria-haspopup="true"
             aria-expanded={open ? 'true' : undefined}
           >
-            <Badge
-              overlap="circular"
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              badgeContent={
-                <Chip
-                  label={profile.role.name.replace('_', ' ')}
-                  size="small"
-                  color="primary"
-                  sx={{ 
-                    height: 16, 
-                    fontSize: '0.6rem',
-                    transform: 'translateY(-8px) translateX(8px)',
-                    '& .MuiChip-label': { px: 0.5 },
-                  }}
-                />
-              }
-            >
+            <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <Avatar
                 sx={{
                   width: 40,
@@ -296,7 +280,24 @@ const ProfileMenu: React.FC = () => {
               >
                 {userInitials}
               </Avatar>
-            </Badge>
+              <Chip
+                label={profile.role.name.replace('_', ' ')}
+                size="small"
+                color="primary"
+                sx={{ 
+                  height: 16,
+                  fontSize: '0.6rem',
+                  mt: 0.5,
+                  maxWidth: 80,
+                  '& .MuiChip-label': { 
+                    px: 0.5,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }
+                }}
+              />
+            </Box>
           </IconButton>
         </Tooltip>
       </Box>
