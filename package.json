@@ -4,11 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"node server.cjs\"",
     "build": "tsc -b && vite build",
     "vercel-build": "tsc -b && vite build",
     "server": "node server.cjs",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

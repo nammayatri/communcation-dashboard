@@ -1,76 +1,345 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  User
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import axios from 'axios';
+import { UserProfile } from '../types/user';
+import { getCityNameFromCode } from '../utils/cityUtils';
 
-interface AuthContextType {
-  currentUser: User | null;
-  signup: (email: string, password: string) => Promise<any>;
-  login: (email: string, password: string) => Promise<any>;
-  logout: () => Promise<void>;
-  googleSignIn: () => Promise<any>;
+// Create a custom axios instance with interceptors for CORS
+const apiClient = axios.create({
+  baseURL: '/api', // This will be proxied to http://localhost:3001/api
+  timeout: 15000,
+  withCredentials: false, // Don't send cookies by default, which can cause CORS issues
+});
+
+// Debug the proxy setup
+console.log('API client configured with baseURL:', apiClient.defaults.baseURL);
+
+// Add request interceptor to include the auth token in every request
+apiClient.interceptors.request.use(
+  config => {
+    console.log(`Making ${config.method?.toUpperCase()} request to: ${config.baseURL}${config.url}`);
+    
+    // Get the current token from localStorage (in case it was updated)
+    const currentToken = localStorage.getItem('token');
+    
+    // Add token to headers if it exists and is not already set
+    if (currentToken && config.headers && !config.headers['token']) {
+      config.headers['token'] = currentToken;
+      
+      // Also add as Authorization header for APIs that expect that format
+      if (!config.headers['Authorization']) {
+        config.headers['Authorization'] = `Bearer ${currentToken}`;
+      }
+    }
+    
+    return config;
+  },
+  error => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+apiClient.interceptors.response.use(
+  response => {
+    return response;
+  },
+  error => {
+    console.error('Response error:', error);
+    
+    // Handle 401 Unauthorized errors - just logout
+    if (error.response && error.response.status === 401) {
+      console.error('Unauthorized (401) detected. User will be logged out.');
+      // Dispatch an event to trigger logout
+      window.dispatchEvent(new CustomEvent('auth:invalid-token'));
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+interface AuthContextProps {
+  isAuthenticated: boolean;
+  token: string | null;
+  profile: UserProfile | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
   loading: boolean;
+  error: string | null;
+  selectedMerchant: string | null;
+  selectedCity: string | null;
+  setSelectedMerchant: (merchant: string) => void;
+  setSelectedCity: (city: string) => void;
+  switchMerchantAndCity: (merchantId: string, city: string) => Promise<boolean>;
+  notification: { message: string; type: 'success' | 'error' | 'info' | 'warning' } | null;
+  clearNotification: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
 
-  const signup = (email: string, password: string) => {
-    return createUserWithEmailAndPassword(auth, email, password);
+  // Helper function to show notifications
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setNotification({ message, type });
   };
 
-  const login = (email: string, password: string) => {
-    return signInWithEmailAndPassword(auth, email, password);
+  // Clear notification
+  const clearNotification = () => {
+    setNotification(null);
+  };
+
+  // Helper function to update the auth token
+  const updateToken = (newToken: string) => {
+    console.log('Updating auth token');
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
-    return signOut(auth);
-  };
-
-  const googleSignIn = () => {
-    const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    localStorage.removeItem('token');
+    setToken(null);
+    setIsAuthenticated(false);
+    setProfile(null);
+    setSelectedMerchant(null);
+    setSelectedCity(null);
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
+    const handleInvalidToken = () => {
+      console.log('Received invalid token notification');
+      showNotification('Your session has expired. Please log in again.', 'error');
+      logout();
+    };
+    
+    window.addEventListener('auth:invalid-token', handleInvalidToken);
+    
+    return () => {
+      window.removeEventListener('auth:invalid-token', handleInvalidToken);
+    };
+  }, [logout, showNotification]);
 
-    return unsubscribe;
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      setToken(savedToken);
+      setIsAuthenticated(true);
+      fetchUserProfile(savedToken);
+    }
   }, []);
 
-  const value = {
-    currentUser,
-    signup,
-    login,
-    logout,
-    googleSignIn,
-    loading
+  useEffect(() => {
+    if (profile && profile.availableMerchants.length > 0 && !selectedMerchant) {
+      setSelectedMerchant(profile.availableMerchants[0]);
+    }
+  }, [profile, selectedMerchant]);
+
+  useEffect(() => {
+    if (profile && selectedMerchant) {
+      const merchantCities = profile.availableCitiesForMerchant.find(
+        city => city.merchantShortId === selectedMerchant
+      );
+      
+      if (merchantCities && merchantCities.operatingCity.length > 0 && !selectedCity) {
+        setSelectedCity(merchantCities.operatingCity[0]);
+      }
+    }
+  }, [profile, selectedMerchant, selectedCity]);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Use relative URL with the proxy
+      const response = await apiClient.post('/bpp/user/login', {
+        email,
+        password
+      });
+      
+      console.log('Login response:', response.data);
+      
+      const authToken = response.data.authToken;
+      
+      if (authToken) {
+        updateToken(authToken);
+        
+        // Set initial merchant ID from response if available
+        if (response.data.merchantId) {
+          setSelectedMerchant(response.data.merchantId);
+        }
+        
+        // Set initial city from response if available
+        if (response.data.city) {
+          setSelectedCity(response.data.city);
+        }
+        
+        await fetchUserProfile(authToken);
+        showNotification('Successfully logged in', 'success');
+        return true;
+      } else {
+        setError('Invalid response from server: Missing authentication token');
+        showNotification('Login failed: Missing authentication token', 'error');
+        return false;
+      }
+    } catch (err: any) {
+      // Check for 401 Unauthorized error - this indicates invalid credentials in login context
+      if (err.response?.status === 401) {
+        setError('Invalid email or password. Please try again.');
+        showNotification('Invalid email or password', 'error');
+        return false;
+      }
+      
+      // Check if this is a CORS error
+      if (err.message && (err.message.includes('Network Error') || err.message.includes('CORS'))) {
+        setError('Network error: This may be a CORS issue. Please ensure the proxy server is running.');
+        showNotification('Network error connecting to server', 'error');
+        console.error('CORS issue detected in login:', err);
+      } else {
+        setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+        showNotification(err.response?.data?.message || 'Login failed', 'error');
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchMerchantAndCity = async (merchantId: string, city: string): Promise<boolean> => {
+    if (!token) {
+      console.error('No token available for switching merchant and city');
+      showNotification('Authentication token missing. Please login again.', 'error');
+      return false;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Get the city code (in case we receive the city name instead of code)
+      const cityCode = city.startsWith('std:') ? city : city;
+      
+      console.log(`Switching to merchant: ${merchantId}, city: ${cityCode}`);
+      
+      // Use relative URL with the proxy
+      const response = await apiClient.post('/bpp/user/switchMerchantAndCity', {
+        merchantId,
+        city: cityCode
+      }, {
+        headers: {
+          'token': token,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Switch merchant response:', response.data);
+      
+      // Update token if it exists in the response
+      if (response.data.authToken) {
+        console.log('New token received from switchMerchantAndCity response');
+        updateToken(response.data.authToken);
+      }
+      
+      // Update local state
+      setSelectedMerchant(merchantId);
+      setSelectedCity(cityCode);
+      
+      // Show success notification
+      const cityName = getCityNameFromCode(cityCode);
+      showNotification(`Switched to ${merchantId} - ${cityName}`, 'success');
+      
+      return true;
+    } catch (err: any) {
+      console.error('Error switching merchant and city:', err);
+      
+      // Check for 401 Unauthorized error
+      if (err.response?.status === 401) {
+        showNotification('Your session has expired. Please log in again.', 'error');
+        logout();
+        return false;
+      }
+      
+      // Check if this is a CORS error
+      if (err.message && (err.message.includes('Network Error') || err.message.includes('CORS'))) {
+        console.error('CORS issue detected in merchant switch:', err);
+        showNotification('Network error while switching merchant/city', 'error');
+      } else {
+        showNotification(err.response?.data?.message || 'Failed to switch merchant/city', 'error');
+      }
+      
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async (authToken: string) => {
+    try {
+      // Use relative URL with the proxy
+      const response = await apiClient.get('/bpp/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'token': authToken // Include both formats for compatibility
+        }
+      });
+      
+      console.log('Profile response:', response.data);
+      setProfile(response.data);
+    } catch (err: any) {
+      // Check for 401 Unauthorized error
+      if (err.response?.status === 401) {
+        showNotification('Your session has expired. Please log in again.', 'error');
+        logout();
+        return;
+      }
+      
+      // Log detailed error info for CORS issues
+      if (err.message && (err.message.includes('Network Error') || err.message.includes('CORS'))) {
+        console.error('CORS issue detected in profile fetch:', err);
+      }
+      console.error('Failed to fetch user profile:', err);
+    }
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider value={{
+      isAuthenticated,
+      token,
+      profile,
+      login,
+      logout,
+      loading,
+      error,
+      selectedMerchant,
+      selectedCity,
+      setSelectedMerchant,
+      setSelectedCity,
+      switchMerchantAndCity,
+      notification,
+      clearNotification
+    }}>
+      {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = (): AuthContextProps => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }; 
