@@ -58,6 +58,14 @@ const LoginPage: React.FC = () => {
           >
             Dashboard Login
           </Typography>
+          <Typography
+            variant="h6"
+            component="h2"
+            gutterBottom
+            sx={{ color: 'primary.secondary', fontWeight: 'bold', mb: 4 }}
+          >
+            Please use your OPs dashboard account to login.
+          </Typography>
 
           {error && (
             <Alert severity="error" sx={{ width: '100%', mb: 3 }}>
