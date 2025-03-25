@@ -1,6 +1,6 @@
 import { CssBaseline, ThemeProvider, createTheme, Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, Snackbar, Alert } from '@mui/material';
 import OverlayCreator from './components/OverlayCreator';
-import MessageCreator from './components/MessageCreator';
+import BannerDashboard from './components/BannerDashboard';
 import { useState } from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MessageIcon from '@mui/icons-material/Message';
@@ -136,7 +136,7 @@ const Dashboard = () => {
         onClick={() => handleTabChange(1)}
         selected={activeTab === 1}
       >
-        Message Creator
+        Banner Dashboard
       </TabButton>
     </Box>
   );
@@ -240,7 +240,7 @@ const Dashboard = () => {
           <OverlayCreator />
         </Box>
         <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
-          <MessageCreator />
+          <BannerDashboard />
         </Box>
       </Box>
     </Box>
