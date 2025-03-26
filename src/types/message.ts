@@ -71,6 +71,7 @@ export interface Message {
     description: string;
     shortDescription: string;
   }[];
+  createdAt: string;
 }
 
 /**

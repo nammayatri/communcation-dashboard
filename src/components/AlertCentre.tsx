@@ -55,7 +55,7 @@ const languages = [
 ];
 
 const AlertCentre: React.FC = () => {
-    const { token } = useAuth();
+    const { token, selectedMerchant, selectedCity } = useAuth();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     
@@ -129,7 +129,16 @@ const AlertCentre: React.FC = () => {
                 message: 'Please login to upload media',
                 severity: 'error'
             });
-            return;
+            return false;
+        }
+
+        if (!selectedMerchant || !selectedCity) {
+            setSnackbar({
+                open: true,
+                message: 'Please select a merchant and city first',
+                severity: 'error'
+            });
+            return false;
         }
 
         if (!alertMessage.mediaUrl || !alertMessage.mediaType) {
@@ -138,7 +147,7 @@ const AlertCentre: React.FC = () => {
                 message: 'Please provide both media URL and type',
                 severity: 'error'
             });
-            return;
+            return false;
         }
 
         if (!validateMediaUrl(alertMessage.mediaUrl, alertMessage.mediaType)) {
@@ -149,12 +158,12 @@ const AlertCentre: React.FC = () => {
                     : 'Please provide a valid URL',
                 severity: 'error'
             });
-            return;
+            return false;
         }
 
         setIsUploading(true);
         try {
-            const response = await fetch('/api/bpp/driver-offer/NAMMA_YATRI_PARTNER/message/addLink', {
+            const response = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/addLink`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json;charset=utf-8',
@@ -167,25 +176,42 @@ const AlertCentre: React.FC = () => {
                 })
             });
 
-            const data = await response.json();
-            if (data && data.id) {
-                setAlertMessage(prev => ({
-                    ...prev,
-                    mediaFileId: data.id
-                }));
+            if (!response.ok) {
+                throw new Error(`Failed to upload media: ${response.status}`);
             }
 
-            setSnackbar({
-                open: true,
-                message: 'Media uploaded successfully',
-                severity: 'success'
-            });
+            const data = await response.json();
+            console.log('Media upload response:', data);
+            
+            if (data && typeof data === 'object' && 'fileId' in data) {
+                console.log('Setting media file ID:', data.fileId);
+                setAlertMessage(prev => {
+                    const updated = {
+                        ...prev,
+                        mediaFileId: data.fileId
+                    };
+                    console.log('Updated alert message:', updated);
+                    return updated;
+                });
+
+                setSnackbar({
+                    open: true,
+                    message: 'Media uploaded successfully',
+                    severity: 'success'
+                });
+                return true;
+            } else {
+                console.error('Invalid response structure:', data);
+                throw new Error('No media ID received in response');
+            }
         } catch (error) {
+            console.error('Error uploading media:', error);
             setSnackbar({
                 open: true,
                 message: 'Failed to upload media: ' + (error instanceof Error ? error.message : 'Unknown error'),
                 severity: 'error'
             });
+            return false;
         } finally {
             setIsUploading(false);
         }
@@ -203,6 +229,15 @@ const AlertCentre: React.FC = () => {
             return;
         }
 
+        if (!selectedMerchant || !selectedCity) {
+            setSnackbar({
+                open: true,
+                message: 'Please select a merchant and city first',
+                severity: 'error'
+            });
+            return;
+        }
+
         if (!alertMessage.title || !alertMessage.description || !alertMessage.shortDescription) {
             setSnackbar({
                 open: true,
@@ -212,7 +247,23 @@ const AlertCentre: React.FC = () => {
             return;
         }
 
+        // If media URL is provided but not uploaded yet, upload it first
+        if (alertMessage.mediaUrl && !alertMessage.mediaFileId) {
+            const uploadSuccess = await handleMediaUpload();
+            if (!uploadSuccess) {
+                return; // Stop if media upload failed
+            }
+        }
+
         try {
+            console.log('Creating message with payload:', {
+                title: alertMessage.title,
+                description: alertMessage.description,
+                shortDescription: alertMessage.shortDescription,
+                translations: alertMessage.translations,
+                mediaFiles: alertMessage.mediaFileId ? [alertMessage.mediaFileId] : []
+            });
+
             const payload = {
                 _type: {
                     tag: "Read",
@@ -230,7 +281,7 @@ const AlertCentre: React.FC = () => {
                 mediaFiles: alertMessage.mediaFileId ? [alertMessage.mediaFileId] : []
             };
 
-            const response = await fetch('/api/bpp/driver-offer/NAMMA_YATRI_PARTNER/message/add', {
+            const response = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/add`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json;charset=utf-8',
@@ -240,8 +291,12 @@ const AlertCentre: React.FC = () => {
                 body: JSON.stringify(payload)
             });
 
+            if (!response.ok) {
+                throw new Error(`Failed to create message: ${response.status}`);
+            }
+
             const data = await response.json();
-            console.log('Create message response:', data); // Debug log
+            console.log('Create message response:', data);
 
             if (data && data.messageId) {
                 // First set the message ID
@@ -365,6 +420,15 @@ const AlertCentre: React.FC = () => {
             return;
         }
 
+        if (!selectedMerchant || !selectedCity) {
+            setSnackbar({
+                open: true,
+                message: 'Please select a merchant and city first',
+                severity: 'error'
+            });
+            return;
+        }
+
         setIsSending(true);
         try {
             // Create a new FormData instance
@@ -377,7 +441,7 @@ const AlertCentre: React.FC = () => {
 
             // Log request details
             console.log('=== Request Details ===');
-            console.log('Endpoint:', 'https://dashboard.beckn.juspay.in/api/bpp/driver-offer/NAMMA_YATRI_PARTNER/Bhubaneshwar/message/send');
+            console.log('Endpoint:', `https://dashboard.moving.tech/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/send`);
             console.log('Headers:', {
                 'Accept': 'application/json;charset=utf-8',
                 'token': token ? '***' : 'missing'
@@ -399,12 +463,12 @@ const AlertCentre: React.FC = () => {
             }
 
             console.log('=== Sending Request ===');
-            const response = await fetch('https://dashboard.beckn.juspay.in/api/bpp/driver-offer/NAMMA_YATRI_PARTNER/message/send', {
+            const response = await fetch(`https://dashboard.moving.tech/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/send`, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json;charset=utf-8',
                     'token': token,
-                    'Referer': 'https://dashboard.beckn.juspay.in/bpp/sendMessage/78a3b109-481e-4301-989e-0a82b1432b3d',
+                    'Referer': 'https://dashboard.moving.tech',
                     'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
                     'sec-ch-ua-mobile': '?0',
                     'sec-ch-ua-platform': '"macOS"',
@@ -470,343 +534,346 @@ const AlertCentre: React.FC = () => {
     };
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-                Alert Centre
-            </Typography>
+        <Box sx={{ 
+            p: 3,
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+        }}>
+            <Box 
+                component="form" 
+                onSubmit={(e) => handleCreateMessage(e)}
+                sx={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}
+            >
+                <Box sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
+                    <Grid container spacing={3}>
+                        {/* Left side - Form */}
+                        <Grid item xs={12} md={7}>
+                            <Card sx={{ mb: 3 }}>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Main Content
+                                    </Typography>
+                                    
+                                    <Grid container spacing={3}>
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                fullWidth
+                                                label="Title"
+                                                value={alertMessage.title}
+                                                onChange={handleInputChange('title')}
+                                            />
+                                        </Grid>
+                                        
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                fullWidth
+                                                label="Short Description"
+                                                value={alertMessage.shortDescription}
+                                                onChange={handleInputChange('shortDescription')}
+                                            />
+                                        </Grid>
+                                        
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                fullWidth
+                                                multiline
+                                                rows={4}
+                                                label="Description"
+                                                value={alertMessage.description}
+                                                onChange={handleInputChange('description')}
+                                            />
+                                        </Grid>
+                                        
+                                        <Grid item xs={12}>
+                                            {!showMediaFields ? (
+                                                <Button
+                                                    variant="outlined"
+                                                    startIcon={<AddIcon />}
+                                                    onClick={() => setShowMediaFields(true)}
+                                                >
+                                                    Add Media
+                                                </Button>
+                                            ) : (
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Media Type</InputLabel>
+                                                        <Select
+                                                            value={alertMessage.mediaType}
+                                                            label="Media Type"
+                                                            onChange={(e: any) => handleMediaTypeChange(e)}
+                                                        >
+                                                            <MenuItem value="ImageLink">Image</MenuItem>
+                                                            <MenuItem value="VideoLink">Video (YouTube)</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                    
+                                                    <Box sx={{ display: 'flex', gap: 2 }}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label={alertMessage.mediaType === 'VideoLink' ? 'YouTube URL' : 'Image URL'}
+                                                            value={alertMessage.mediaUrl}
+                                                            onChange={handleInputChange('mediaUrl')}
+                                                            placeholder={alertMessage.mediaType === 'VideoLink' ? 'Enter YouTube URL' : 'Enter image URL'}
+                                                            error={alertMessage.mediaType === 'VideoLink' && alertMessage.mediaUrl !== '' && !validateMediaUrl(alertMessage.mediaUrl, 'VideoLink')}
+                                                            helperText={alertMessage.mediaType === 'VideoLink' && alertMessage.mediaUrl !== '' && !validateMediaUrl(alertMessage.mediaUrl, 'VideoLink') ? 'Only YouTube links are supported' : ''}
+                                                        />
+                                                        <Button
+                                                            variant="contained"
+                                                            startIcon={isUploading ? null : <CloudUploadIcon />}
+                                                            onClick={handleMediaUpload}
+                                                            disabled={isUploading}
+                                                            sx={{ minWidth: '150px' }}
+                                                        >
+                                                            {isUploading ? 'Uploading...' : 'Upload Media'}
+                                                        </Button>
+                                                    </Box>
+                                                </Box>
+                                            )}
+                                        </Grid>
+                                    </Grid>
+                                </CardContent>
+                            </Card>
 
-            <form onSubmit={(e) => handleCreateMessage(e)}>
-                <Grid container spacing={3}>
-                    {/* Left side - Form */}
-                    <Grid item xs={12} md={7}>
-                        <Card sx={{ mb: 3 }}>
-                            <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    Main Content
-                                </Typography>
-                                
-                                <Grid container spacing={3}>
-                                    <Grid item xs={12}>
-                                        <TextField
-                                            fullWidth
-                                            label="Title"
-                                            value={alertMessage.title}
-                                            onChange={handleInputChange('title')}
-                                        />
-                                    </Grid>
-                                    
-                                    <Grid item xs={12}>
-                                        <TextField
-                                            fullWidth
-                                            label="Short Description"
-                                            value={alertMessage.shortDescription}
-                                            onChange={handleInputChange('shortDescription')}
-                                        />
-                                    </Grid>
-                                    
-                                    <Grid item xs={12}>
-                                        <TextField
-                                            fullWidth
-                                            multiline
-                                            rows={4}
-                                            label="Description"
-                                            value={alertMessage.description}
-                                            onChange={handleInputChange('description')}
-                                        />
-                                    </Grid>
-                                    
-                                    <Grid item xs={12}>
-                                        {!showMediaFields ? (
-                                            <Button
-                                                variant="outlined"
-                                                startIcon={<AddIcon />}
-                                                onClick={() => setShowMediaFields(true)}
-                                            >
-                                                Add Media
-                                            </Button>
-                                        ) : (
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                <FormControl fullWidth>
-                                                    <InputLabel>Media Type</InputLabel>
-                                                    <Select
-                                                        value={alertMessage.mediaType}
-                                                        label="Media Type"
-                                                        onChange={(e: any) => handleMediaTypeChange(e)}
-                                                    >
-                                                        <MenuItem value="ImageLink">Image</MenuItem>
-                                                        <MenuItem value="VideoLink">Video (YouTube)</MenuItem>
-                                                    </Select>
-                                                </FormControl>
-                                                
-                                                <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Card>
+                                <CardContent>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                        <Typography variant="h6">
+                                            Translations
+                                        </Typography>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<AddIcon />}
+                                            onClick={handleAddTranslation}
+                                        >
+                                            Add Translation
+                                        </Button>
+                                    </Box>
+
+                                    {alertMessage.translations.map((translation, index) => (
+                                        <Box key={index} sx={{ mb: 3 }}>
+                                            <Box sx={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                alignItems: 'center', 
+                                                mb: 2 
+                                            }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                                                    <Typography variant="subtitle1">
+                                                        Translation {index + 1}
+                                                    </Typography>
+                                                    <FormControl sx={{ minWidth: 200 }}>
+                                                        <Select
+                                                            size="small"
+                                                            value={translation.language}
+                                                            onChange={(e: any) => handleTranslationChange(index, 'language')(e)}
+                                                            displayEmpty
+                                                        >
+                                                            <MenuItem value="">Select Language</MenuItem>
+                                                            {languages.map((lang) => (
+                                                                <MenuItem key={lang} value={lang}>
+                                                                    {lang}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                </Box>
+                                                <IconButton 
+                                                    color="error" 
+                                                    onClick={() => handleRemoveTranslation(index)}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Box>
+
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={12}>
                                                     <TextField
                                                         fullWidth
-                                                        label={alertMessage.mediaType === 'VideoLink' ? 'YouTube URL' : 'Image URL'}
-                                                        value={alertMessage.mediaUrl}
-                                                        onChange={handleInputChange('mediaUrl')}
-                                                        placeholder={alertMessage.mediaType === 'VideoLink' ? 'Enter YouTube URL' : 'Enter image URL'}
-                                                        error={alertMessage.mediaType === 'VideoLink' && alertMessage.mediaUrl !== '' && !validateMediaUrl(alertMessage.mediaUrl, 'VideoLink')}
-                                                        helperText={alertMessage.mediaType === 'VideoLink' && alertMessage.mediaUrl !== '' && !validateMediaUrl(alertMessage.mediaUrl, 'VideoLink') ? 'Only YouTube links are supported' : ''}
+                                                        label="Title"
+                                                        value={translation.title}
+                                                        onChange={(e) => handleTranslationChange(index, 'title')(e)}
                                                     />
-                                                    <Button
-                                                        variant="contained"
-                                                        startIcon={isUploading ? null : <CloudUploadIcon />}
-                                                        onClick={handleMediaUpload}
-                                                        disabled={isUploading}
-                                                        sx={{ minWidth: '150px' }}
-                                                    >
-                                                        {isUploading ? 'Uploading...' : 'Upload Media'}
-                                                    </Button>
-                                                </Box>
-                                            </Box>
-                                        )}
-                                    </Grid>
-                                </Grid>
-                            </CardContent>
-                        </Card>
+                                                </Grid>
 
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                    <Typography variant="h6">
-                                        Translations
-                                    </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<AddIcon />}
-                                        onClick={handleAddTranslation}
-                                    >
-                                        Add Translation
-                                    </Button>
-                                </Box>
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Short Description"
+                                                        value={translation.shortDescription}
+                                                        onChange={(e) => handleTranslationChange(index, 'shortDescription')(e)}
+                                                    />
+                                                </Grid>
 
-                                {alertMessage.translations.map((translation, index) => (
-                                    <Box key={index} sx={{ mb: 3 }}>
-                                        <Box sx={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
-                                            alignItems: 'center', 
-                                            mb: 2 
-                                        }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                                                <Typography variant="subtitle1">
-                                                    Translation {index + 1}
-                                                </Typography>
-                                                <FormControl sx={{ minWidth: 200 }}>
-                                                    <Select
-                                                        size="small"
-                                                        value={translation.language}
-                                                        onChange={(e: any) => handleTranslationChange(index, 'language')(e)}
-                                                        displayEmpty
-                                                    >
-                                                        <MenuItem value="">Select Language</MenuItem>
-                                                        {languages.map((lang) => (
-                                                            <MenuItem key={lang} value={lang}>
-                                                                {lang}
-                                                            </MenuItem>
-                                                        ))}
-                                                    </Select>
-                                                </FormControl>
-                                            </Box>
-                                            <IconButton 
-                                                color="error" 
-                                                onClick={() => handleRemoveTranslation(index)}
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        fullWidth
+                                                        multiline
+                                                        rows={4}
+                                                        label="Description"
+                                                        value={translation.description}
+                                                        onChange={(e) => handleTranslationChange(index, 'description')(e)}
+                                                    />
+                                                </Grid>
+                                            </Grid>
+                                            {index < alertMessage.translations.length - 1 && <Divider sx={{ my: 2 }} />}
                                         </Box>
+                                    ))}
+                                </CardContent>
+                            </Card>
 
-                                        <Grid container spacing={2}>
-                                            <Grid item xs={12}>
-                                                <TextField
+                            {/* Message Actions - Moved up */}
+                            <Card sx={{ mt: 2 }}>
+                                <CardContent sx={{ py: 2 }}>
+                                    <Grid container spacing={2} alignItems="center">
+                                        <Grid item xs={12}>
+                                            <Typography variant="h6" gutterBottom>
+                                                Message Actions
+                                            </Typography>
+                                        </Grid>
+                                        <Grid container item xs={12} spacing={2}>
+                                            <Grid item xs={4}>
+                                                <Button
+                                                    variant="contained"
+                                                    color="primary"
                                                     fullWidth
-                                                    label="Title"
-                                                    value={translation.title}
-                                                    onChange={(e) => handleTranslationChange(index, 'title')(e)}
-                                                />
+                                                    type="submit"
+                                                    disabled={isSending}
+                                                >
+                                                    Create Message
+                                                </Button>
                                             </Grid>
-
-                                            <Grid item xs={12}>
-                                                <TextField
-                                                    fullWidth
-                                                    label="Short Description"
-                                                    value={translation.shortDescription}
-                                                    onChange={(e) => handleTranslationChange(index, 'shortDescription')(e)}
+                                            <Grid item xs={4}>
+                                                <input
+                                                    ref={fileInputRef}
+                                                    accept=".csv"
+                                                    id="csv-file"
+                                                    type="file"
+                                                    style={{ display: "none" }}
+                                                    onChange={handleFileSelect}
+                                                    disabled={!alertMessage?.messageId}
                                                 />
+                                                <Button
+                                                    variant="contained"
+                                                    component="span"
+                                                    disabled={!alertMessage?.messageId}
+                                                    startIcon={selectedFile ? null : <CloudUploadIcon />}
+                                                    color={selectedFile ? "success" : "primary"}
+                                                    fullWidth
+                                                    onClick={handleButtonClick}
+                                                >
+                                                    {selectedFile ? `Upload "${selectedFile.name}"` : "Upload CSV"}
+                                                </Button>
                                             </Grid>
-
-                                            <Grid item xs={12}>
-                                                <TextField
+                                            <Grid item xs={4}>
+                                                <Button
+                                                    variant="contained"
                                                     fullWidth
-                                                    multiline
-                                                    rows={4}
-                                                    label="Description"
-                                                    value={translation.description}
-                                                    onChange={(e) => handleTranslationChange(index, 'description')(e)}
-                                                />
+                                                    disabled={!alertMessage.messageId || !selectedFile || isSending}
+                                                    onClick={handleSendMessage}
+                                                    startIcon={isSending ? null : <SendIcon />}
+                                                >
+                                                    {isSending ? 'Sending...' : 'Send Message'}
+                                                </Button>
                                             </Grid>
                                         </Grid>
-                                        {index < alertMessage.translations.length - 1 && <Divider sx={{ my: 2 }} />}
-                                    </Box>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    {/* Right side - Preview */}
-                    <Grid item xs={12} md={5}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 2, 
-                                position: 'sticky',
-                                top: 24,
-                                bgcolor: '#f5f5f5'
-                            }}
-                        >
-                            <Typography variant="h6" gutterBottom>
-                                Preview
-                            </Typography>
-                            
-                            {alertMessage.mediaUrl && (
-                                <>
-                                    {alertMessage.mediaType === 'ImageLink' ? (
-                                        <Box 
-                                            component="img"
-                                            src={alertMessage.mediaUrl}
-                                            alt="Preview"
-                                            sx={{
-                                                width: '100%',
-                                                height: 'auto',
-                                                borderRadius: 1,
-                                                mb: 2
-                                            }}
-                                            onError={(e: any) => {
-                                                e.target.style.display = 'none';
-                                                setSnackbar({
-                                                    open: true,
-                                                    message: 'Failed to load image preview',
-                                                    severity: 'error'
-                                                });
-                                            }}
-                                        />
-                                    ) : alertMessage.mediaType === 'VideoLink' && getYoutubeVideoId(alertMessage.mediaUrl) ? (
-                                        <Box
-                                            component="iframe"
-                                            src={`https://www.youtube.com/embed/${getYoutubeVideoId(alertMessage.mediaUrl)}`}
-                                            sx={{
-                                                width: '100%',
-                                                height: '250px',
-                                                border: 'none',
-                                                borderRadius: 1,
-                                                mb: 2
-                                            }}
-                                            allowFullScreen
-                                        />
-                                    ) : null}
-                                </>
-                            )}
-                            
-                            <Typography 
-                                variant="h5" 
-                                gutterBottom 
-                                sx={{ 
-                                    fontWeight: 'bold',
-                                    wordBreak: 'break-word'
-                                }}
-                            >
-                                {alertMessage.title || 'Title'}
-                            </Typography>
-                            
-                            <Typography 
-                                variant="body1" 
-                                sx={{ 
-                                    mb: 2,
-                                    color: 'text.secondary',
-                                    wordBreak: 'break-word'
-                                }}
-                            >
-                                {alertMessage.shortDescription || 'Short Description'}
-                            </Typography>
-                            
-                            <Typography 
-                                variant="body1"
-                                sx={{ 
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word'
-                                }}
-                            >
-                                {alertMessage.description || 'Description'}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-
-                    {/* Add this new section for CSV upload and Send Message */}
-                    <Grid item xs={12}>
-                        <Card>
-                            <CardContent>
-                                <Grid container spacing={2} alignItems="center">
-                                    <Grid item xs={12}>
-                                        <Typography variant="h6" gutterBottom>
-                                            Message Actions
-                                        </Typography>
                                     </Grid>
-                                    
-                                    <Grid item container xs={12} spacing={2} alignItems="center">
-                                        <Grid item xs={4}>
-                                            <Button
-                                                type="submit"
-                                                variant="contained"
-                                                size="large"
-                                                fullWidth
-                                                disabled={!token || isUploading}
-                                                startIcon={isUploading ? null : undefined}
-                                            >
-                                                {isUploading ? 'Creating...' : 'Create Message'}
-                                            </Button>
-                                        </Grid>
+                                </CardContent>
+                            </Card>
+                        </Grid>
 
-                                        <Grid item xs={4}>
-                                            <input
-                                                ref={fileInputRef}
-                                                accept=".csv"
-                                                id="csv-file"
-                                                type="file"
-                                                style={{ display: "none" }}
-                                                onChange={handleFileSelect}
-                                                disabled={!alertMessage?.messageId}
+                        {/* Right side - Preview */}
+                        <Grid item xs={12} md={5}>
+                            <Paper 
+                                elevation={3} 
+                                sx={{ 
+                                    p: 2,
+                                    bgcolor: '#f5f5f5',
+                                    height: '100%',
+                                    overflow: 'auto'
+                                }}
+                            >
+                                {alertMessage.mediaUrl && (
+                                    <>
+                                        {alertMessage.mediaType === 'ImageLink' ? (
+                                            <Box 
+                                                component="img"
+                                                src={alertMessage.mediaUrl}
+                                                alt="Preview"
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 'auto',
+                                                    borderRadius: 1,
+                                                    mb: 2
+                                                }}
+                                                onError={(e: any) => {
+                                                    e.target.style.display = 'none';
+                                                    setSnackbar({
+                                                        open: true,
+                                                        message: 'Failed to load image preview',
+                                                        severity: 'error'
+                                                    });
+                                                }}
                                             />
-                                            <Button
-                                                variant="contained"
-                                                component="span"
-                                                disabled={!alertMessage?.messageId}
-                                                startIcon={selectedFile ? null : <CloudUploadIcon />}
-                                                color={selectedFile ? "success" : "primary"}
-                                                fullWidth
-                                                onClick={handleButtonClick}
-                                            >
-                                                {selectedFile ? `Upload "${selectedFile.name}"` : "Upload CSV"}
-                                            </Button>
-                                        </Grid>
-
-                                        <Grid item xs={4}>
-                                            <Button
-                                                variant="contained"
-                                                fullWidth
-                                                disabled={!alertMessage.messageId || !selectedFile || isSending}
-                                                onClick={handleSendMessage}
-                                                startIcon={isSending ? null : <SendIcon />}
-                                            >
-                                                {isSending ? 'Sending...' : 'Send Message'}
-                                            </Button>
-                                        </Grid>
-                                    </Grid>
-                                </Grid>
-                            </CardContent>
-                        </Card>
+                                        ) : alertMessage.mediaType === 'VideoLink' && getYoutubeVideoId(alertMessage.mediaUrl) ? (
+                                            <Box
+                                                component="iframe"
+                                                src={`https://www.youtube.com/embed/${getYoutubeVideoId(alertMessage.mediaUrl)}`}
+                                                sx={{
+                                                    width: '100%',
+                                                    height: '250px',
+                                                    border: 'none',
+                                                    borderRadius: 1,
+                                                    mb: 2
+                                                }}
+                                                allowFullScreen
+                                            />
+                                        ) : null}
+                                    </>
+                                )}
+                                
+                                <Typography 
+                                    variant="h5" 
+                                    gutterBottom 
+                                    sx={{ 
+                                        fontWeight: 'bold',
+                                        wordBreak: 'break-word'
+                                    }}
+                                >
+                                    {alertMessage.title || 'Title'}
+                                </Typography>
+                                
+                                <Typography 
+                                    variant="body1" 
+                                    sx={{ 
+                                        mb: 2,
+                                        color: 'text.secondary',
+                                        wordBreak: 'break-word'
+                                    }}
+                                >
+                                    {alertMessage.shortDescription || 'Short Description'}
+                                </Typography>
+                                
+                                <Typography 
+                                    variant="body1"
+                                    sx={{ 
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word'
+                                    }}
+                                >
+                                    {alertMessage.description || 'Description'}
+                                </Typography>
+                            </Paper>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </form>
+                </Box>
+            </Box>
 
             <Snackbar
                 open={snackbar.open}

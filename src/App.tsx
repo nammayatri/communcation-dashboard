@@ -1,4 +1,4 @@
-import { Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, createTheme } from '@mui/material';
+import { Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, createTheme, ThemeProvider } from '@mui/material';
 import OverlayCreator from './components/OverlayCreator';
 import BannerDashboard from './components/BannerDashboard';
 import AlertCentre from './components/AlertCentre';
@@ -13,7 +13,8 @@ import LoginPage from './components/LoginPage';
 import ProfileMenu from './components/ProfileMenu';
 import { AuthProvider } from './contexts/AuthContext';
 import MessageList from './components/MessageList';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import MessageDetails from './components/MessageDetails';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const theme = createTheme({
   palette: {
@@ -45,6 +46,9 @@ const theme = createTheme({
 // Define props interface for the TabButton component
 interface TabButtonProps {
   selected: boolean;
+  onClick?: () => void;
+  startIcon?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 // Fixed styled component that doesn't require theme as a prop
@@ -67,18 +71,14 @@ const TabButton = styled(Button, {
 
 // Main dashboard component
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  console.log('Dashboard render:', { isMobile });
   
   const SIDEBAR_WIDTH = 260;
-
-  const handleTabChange = (tabIndex: number) => {
-    setActiveTab(tabIndex);
-    if (isMobile) {
-      setDrawerOpen(false);
-    }
-  };
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -129,25 +129,28 @@ const Dashboard = () => {
       </Box>
       
       <TabButton
+        onClick={() => navigate('/overlay')}
         startIcon={<DashboardIcon />}
-        onClick={() => handleTabChange(0)}
-        selected={activeTab === 0}
+        selected={location.pathname === '/overlay'}
       >
         Overlay Dashboard
       </TabButton>
       
       <TabButton
+        onClick={() => navigate('/banner')}
         startIcon={<MessageIcon />}
-        onClick={() => handleTabChange(1)}
-        selected={activeTab === 1}
+        selected={location.pathname === '/banner'}
       >
         Banner Dashboard
       </TabButton>
 
       <TabButton
+        onClick={() => {
+          console.log('Navigating to Alert Centre');
+          navigate('/alert-centre');
+        }}
         startIcon={<WarningIcon />}
-        onClick={() => handleTabChange(2)}
-        selected={activeTab === 2}
+        selected={location.pathname.startsWith('/alert-centre') || location.pathname.startsWith('/message/')}
       >
         Alert Centre
       </TabButton>
@@ -175,7 +178,7 @@ const Dashboard = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: theme.palette.primary.main }}>
-              {activeTab === 0 ? 'Overlay Dashboard' : activeTab === 1 ? 'Banner Dashboard' : 'Alert Centre'}
+              Dashboard
             </Typography>
             <ProfileMenu />
           </Toolbar>
@@ -208,7 +211,7 @@ const Dashboard = () => {
           elevation={0}
           sx={{ 
             bgcolor: 'white', 
-            zIndex: 1,
+            zIndex: 1100,
             ml: `${SIDEBAR_WIDTH}px`,
             width: `calc(100% - ${SIDEBAR_WIDTH}px)`,
             borderBottom: '1px solid #e0e0e0'
@@ -249,15 +252,7 @@ const Dashboard = () => {
           bgcolor: 'background.default',
         }}
       >
-        <Box sx={{ display: activeTab === 0 ? 'block' : 'none' }}>
-          <OverlayCreator />
-        </Box>
-        <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
-          <BannerDashboard />
-        </Box>
-        <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
-          <AlertCentre />
-        </Box>
+        <Outlet />
       </Box>
     </Box>
   );
@@ -265,21 +260,24 @@ const Dashboard = () => {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<Dashboard />}>
-            <Route index element={<Navigate to="/alert-centre" replace />} />
-            <Route path="alert-centre" element={<AlertCentre />} />
-            <Route path="alert-centre-list" element={<AlertCentreList />} />
-            <Route path="messages" element={<MessageList />} />
-            <Route path="overlay" element={<OverlayCreator />} />
-            <Route path="banner" element={<BannerDashboard />} />
-          </Route>
-        </Routes>
-      </AuthProvider>
-    </Router>
+    <ThemeProvider theme={theme}>
+      <Router>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<Dashboard />}>
+              <Route index element={<Navigate to="/alert-centre" replace />} />
+              <Route path="alert-centre" element={<AlertCentreList />} />
+              <Route path="alert-centre/create" element={<AlertCentre />} />
+              <Route path="message/:messageId" element={<MessageDetails />} />
+              <Route path="messages" element={<MessageList />} />
+              <Route path="overlay" element={<OverlayCreator />} />
+              <Route path="banner" element={<BannerDashboard />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </Router>
+    </ThemeProvider>
   );
 }
 

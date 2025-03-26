@@ -20,6 +20,7 @@ import {
   // Autocomplete,
   // TextField,
   CircularProgress,
+  Button,
 } from '@mui/material';
 import {
   Logout,
@@ -68,6 +69,15 @@ const ProfileMenu: React.FC = () => {
     switchMerchantAndCity,
     loading,
   } = useAuth();
+
+  console.log('ProfileMenu render:', {
+    hasProfile: !!profile,
+    profileData: profile,
+    selectedMerchant,
+    selectedCity,
+    loading
+  });
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [merchantMenuAnchorEl, setMerchantMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [cityMenuAnchorEl, setCityMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -152,8 +162,25 @@ const ProfileMenu: React.FC = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  // If no profile, don't render
-  if (!profile) return null;
+  // If no profile, show a login button or loading state
+  if (!profile) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '64px', padding: '0 16px' }}>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={() => {
+            console.log('Logging out...');
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+          }}
+          startIcon={<Logout />}
+        >
+          Logout
+        </Button>
+      </Box>
+    );
+  }
 
   const userInitials = getInitials(profile.firstName, profile.lastName);
 
@@ -207,7 +234,14 @@ const ProfileMenu: React.FC = () => {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, position: 'relative' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 2, 
+        position: 'relative',
+        height: '64px', // Match Toolbar height
+        padding: '0 16px'
+      }}>
         {/* Loading overlay */}
         {(loading || localLoading) && (
           <Box 
@@ -236,7 +270,7 @@ const ProfileMenu: React.FC = () => {
               <Business fontSize="small" />
             </SelectIcon>
             <SelectText>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '120px' }}>
                 {selectedMerchant || "Select Merchant"}
               </Typography>
             </SelectText>
@@ -251,7 +285,7 @@ const ProfileMenu: React.FC = () => {
                 <LocationCity fontSize="small" />
               </SelectIcon>
               <SelectText>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '100px' }}>
                   {selectedCity ? getCityNameFromCode(selectedCity) : "Select City"}
                 </Typography>
               </SelectText>

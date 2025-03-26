@@ -245,8 +245,8 @@ const CTAButton = styled.button<{ bgColor: string; textColor: string }>`
 `;
 
 const BannerImage = styled.img`
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   border-radius: 8px;
 `;
@@ -324,7 +324,7 @@ const BannerDashboard: React.FC = () => {
     ctaText: 'Setup Now',
     ctaLink: '#',
     backgroundColor: '#0D904F',
-    ctaButtonColor: 'transparent',
+    ctaButtonColor: '#AAAAAA',
     textColor: '#ffffff',
     ctaTextColor: '#ffffff'
   });

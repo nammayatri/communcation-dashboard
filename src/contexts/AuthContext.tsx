@@ -132,12 +132,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [logout, showNotification]);
 
+  const fetchUserProfile = async (authToken: string) => {
+    console.log('Fetching user profile with token:', authToken ? 'present' : 'missing');
+    try {
+      const response = await apiClient.get('/bpp/user/profile', {
+        headers: {
+          'token': authToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Profile response:', response.data);
+      
+      if (response.data) {
+        setProfile(response.data);
+        
+        // Set initial merchant if not already set
+        if (!selectedMerchant && response.data.availableMerchants.length > 0) {
+          setSelectedMerchant(response.data.availableMerchants[0]);
+        }
+        
+        // Set initial city if not already set
+        if (!selectedCity && response.data.availableCitiesForMerchant.length > 0) {
+          const firstMerchantCities = response.data.availableCitiesForMerchant[0];
+          if (firstMerchantCities.operatingCity.length > 0) {
+            setSelectedCity(firstMerchantCities.operatingCity[0]);
+          }
+        }
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return false;
+    }
+  };
+
+  // Effect to fetch profile on mount if token exists
   useEffect(() => {
+    console.log('Auth context mounted, checking token...');
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
+      console.log('Found saved token, setting auth state...');
       setToken(savedToken);
       setIsAuthenticated(true);
       fetchUserProfile(savedToken);
+    } else {
+      console.log('No saved token found');
     }
   }, []);
 
@@ -283,34 +325,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUserProfile = async (authToken: string) => {
-    try {
-      // Use relative URL with the proxy
-      const response = await apiClient.get('/bpp/user/profile', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'token': authToken // Include both formats for compatibility
-        }
-      });
-      
-      console.log('Profile response:', response.data);
-      setProfile(response.data);
-    } catch (err: any) {
-      // Check for 401 Unauthorized error
-      if (err.response?.status === 401) {
-        showNotification('Your session has expired. Please log in again.', 'error');
-        logout();
-        return;
-      }
-      
-      // Log detailed error info for CORS issues
-      if (err.message && (err.message.includes('Network Error') || err.message.includes('CORS'))) {
-        console.error('CORS issue detected in profile fetch:', err);
-      }
-      console.error('Failed to fetch user profile:', err);
     }
   };
 
