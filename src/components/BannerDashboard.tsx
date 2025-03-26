@@ -153,7 +153,7 @@ const HexInput = styled(Input)`
 `;
 
 const PreviewSection = styled(Card)`
-  padding: 2rem;
+  padding: 1rem;
   position: sticky;
   top: 2rem;
   height: fit-content;
@@ -162,71 +162,93 @@ const PreviewSection = styled(Card)`
 const PreviewTitle = styled.h2`
   font-size: 1.25rem;
   color: #1a1a1a;
-  margin: 0 0 1.5rem;
+  margin: 0 0 1rem;
   font-weight: 600;
 `;
 
+const MobilePreview = styled.div`
+  width: 360px;
+  height: 780px;
+  background: url('/Online.png') no-repeat center center;
+  background-size: cover;
+  border-radius: 40px;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+  border: 12px solid #333;
+
+  &:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150px;
+    height: 28px;
+    background: #333;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+  }
+
+  /* Status bar */
+  &:after {
+    content: '12:30 78%';
+    position: absolute;
+    top: 6px;
+    right: 16px;
+    color: #000;
+    font-size: 14px;
+    font-weight: 500;
+  }
+`;
+
 const BannerPreview = styled.div<{ config: BannerConfig }>`
+  position: absolute;
+  bottom: 90px;
+  left: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2rem;
-  border-radius: 12px;
-  background-color: ${(props: any) => props.config.backgroundColor};
-  transition: all 0.3s ease;
+  padding: 20px 24px;
+  background-color: ${(props) => props.config.backgroundColor};
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
 `;
 
 const BannerContent = styled.div`
   flex: 1;
-  margin-right: 2rem;
+  margin-right: 20px;
 `;
 
 const BannerText = styled.p<{ color: string }>`
-  font-size: 1.25rem;
+  font-size: 0.9375rem;
   margin: 0;
-  color: ${(props: any) => props.color};
-  word-wrap: break-word;
-  line-height: 1.5;
+  color: ${(props: { color: string }) => props.color};
+  font-weight: 500;
 `;
 
 const CTAButton = styled.button<{ bgColor: string; textColor: string }>`
-  background: ${(props: any) => props.bgColor};
-  color: ${(props: any) => props.textColor};
+  background-color: ${(props) => props.bgColor};
+  color: ${(props) => props.textColor};
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 25px;
-  font-size: 1rem;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  margin-top: 8px;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
+  height: 32px;
 `;
 
-const BannerImage = styled.div<{ imageUrl: string }>`
-  width: 120px;
-  height: 120px;
-  flex-shrink: 0;
-  background-image: url(${(props: any) => props.imageUrl});
-  background-size: cover;
-  background-position: center;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-  
-  &:hover {
-    transform: scale(1.05);
-  }
+const BannerImage = styled.img`
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
 `;
 
 const GenerateButton = styled.button`
@@ -297,13 +319,13 @@ const Divider = styled.hr`
 
 const BannerDashboard: React.FC = () => {
   const [config, setConfig] = useState<BannerConfig>({
-    text: 'Enter your banner text here',
-    bannerImage: 'https://via.placeholder.com/200',
-    ctaText: 'Join Now',
+    text: 'Setup Autopay to get special discounts!',
+    bannerImage: '/limited-offer.png',
+    ctaText: 'Setup Now',
     ctaLink: '#',
-    backgroundColor: '#e8f5e9',
-    ctaButtonColor: '#1b5e20',
-    textColor: '#2e7d32',
+    backgroundColor: '#0D904F',
+    ctaButtonColor: 'transparent',
+    textColor: '#ffffff',
     ctaTextColor: '#ffffff'
   });
 
@@ -514,20 +536,26 @@ const BannerDashboard: React.FC = () => {
       </FormSection>
 
       <PreviewSection>
-        <PreviewTitle>Live Preview</PreviewTitle>
-        <BannerPreview config={config}>
-          <BannerContent>
-            <BannerText color={config.textColor}>{config.text}</BannerText>
-            <CTAButton
-              bgColor={config.ctaButtonColor}
-              textColor={config.ctaTextColor}
-              onClick={() => window.open(config.ctaLink, '_blank')}
-            >
-              {config.ctaText}
-            </CTAButton>
-          </BannerContent>
-          <BannerImage imageUrl={config.bannerImage} />
-        </BannerPreview>
+        <PreviewTitle>Mobile Preview</PreviewTitle>
+        <MobilePreview>
+          <BannerPreview 
+            config={config}
+            onClick={() => window.open(config.ctaLink, '_blank')}
+          >
+            <BannerContent>
+              <BannerText color={config.textColor}>
+                {config.text}
+              </BannerText>
+              <CTAButton
+                bgColor={config.ctaButtonColor}
+                textColor={config.ctaTextColor}
+              >
+                {config.ctaText}
+              </CTAButton>
+            </BannerContent>
+            <BannerImage src={config.bannerImage} alt="Banner" />
+          </BannerPreview>
+        </MobilePreview>
       </PreviewSection>
     </DashboardContainer>
   );

@@ -59,18 +59,18 @@ export interface MessagePayload {
  * Message object for internal use in the application
  */
 export interface Message {
-  id: string;
-  _type: MessageType;
-  actionLabel?: string;
+  messageId: string;
   title: string;
-  description: string;
-  shortDescription: string;
-  label?: string;
-  alwaysTriggerOnOnboarding: boolean;
-  translations: MessageTranslation[];
-  mediaFiles: MediaFile[];
-  createdAt: string;
-  updatedAt: string;
+  type: string;
+  shortDescription?: string;
+  description?: string;
+  mediaFiles?: string[];
+  translations?: {
+    language: string;
+    title: string;
+    description: string;
+    shortDescription: string;
+  }[];
 }
 
 /**
@@ -118,4 +118,9 @@ export interface MessageSendResult {
   success: number;
   failed: number;
   failedRecipients: { recipient: string; error: string }[];
+}
+
+export interface MessageListResponse {
+  messages: Message[];
+  totalCount: number;
 } 

@@ -1,14 +1,19 @@
-import { CssBaseline, ThemeProvider, createTheme, Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, Snackbar, Alert } from '@mui/material';
+import { Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, createTheme } from '@mui/material';
 import OverlayCreator from './components/OverlayCreator';
 import BannerDashboard from './components/BannerDashboard';
+import AlertCentre from './components/AlertCentre';
+import AlertCentreList from './components/AlertCentreList';
 import { useState } from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MessageIcon from '@mui/icons-material/Message';
+import WarningIcon from '@mui/icons-material/Warning';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import LoginPage from './components/LoginPage';
 import ProfileMenu from './components/ProfileMenu';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
+import MessageList from './components/MessageList';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 const theme = createTheme({
   palette: {
@@ -138,6 +143,14 @@ const Dashboard = () => {
       >
         Banner Dashboard
       </TabButton>
+
+      <TabButton
+        startIcon={<WarningIcon />}
+        onClick={() => handleTabChange(2)}
+        selected={activeTab === 2}
+      >
+        Alert Centre
+      </TabButton>
     </Box>
   );
 
@@ -162,7 +175,7 @@ const Dashboard = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: theme.palette.primary.main }}>
-              {activeTab === 0 ? 'Overlay Dashboard' : 'Message Creator'}
+              {activeTab === 0 ? 'Overlay Dashboard' : activeTab === 1 ? 'Banner Dashboard' : 'Alert Centre'}
             </Typography>
             <ProfileMenu />
           </Toolbar>
@@ -242,6 +255,9 @@ const Dashboard = () => {
         <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
           <BannerDashboard />
         </Box>
+        <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
+          <AlertCentre />
+        </Box>
       </Box>
     </Box>
   );
@@ -249,43 +265,22 @@ const Dashboard = () => {
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <Router>
       <AuthProvider>
-        <AppContent />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<Dashboard />}>
+            <Route index element={<Navigate to="/alert-centre" replace />} />
+            <Route path="alert-centre" element={<AlertCentre />} />
+            <Route path="alert-centre-list" element={<AlertCentreList />} />
+            <Route path="messages" element={<MessageList />} />
+            <Route path="overlay" element={<OverlayCreator />} />
+            <Route path="banner" element={<BannerDashboard />} />
+          </Route>
+        </Routes>
       </AuthProvider>
-    </ThemeProvider>
+    </Router>
   );
 }
-
-// Component to conditionally render login or dashboard based on auth state
-const AppContent = () => {
-  const { token, notification, clearNotification } = useAuth();
-  
-  return (
-    <>
-      {token ? <Dashboard /> : <LoginPage />}
-      
-      {/* Notification Snackbar */}
-      {notification && (
-        <Snackbar
-          open={!!notification}
-          autoHideDuration={6000}
-          onClose={clearNotification}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert 
-            onClose={clearNotification} 
-            severity={notification.type} 
-            sx={{ width: '100%' }}
-            variant="filled"
-          >
-            {notification.message}
-          </Alert>
-        </Snackbar>
-      )}
-    </>
-  );
-};
 
 export default App; 
