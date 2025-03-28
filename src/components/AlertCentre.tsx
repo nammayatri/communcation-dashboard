@@ -241,7 +241,7 @@ const AlertCentre: React.FC = () => {
         if (!alertMessage.title || !alertMessage.description || !alertMessage.shortDescription) {
             setSnackbar({
                 open: true,
-                message: 'Please fill in all required fields (title, description, and short description)',
+                message: 'Please fill in all required fields (title, description, and Push Notification description)',
                 severity: 'error'
             });
             return;
@@ -574,7 +574,7 @@ const AlertCentre: React.FC = () => {
                                         <Grid item xs={12}>
                                             <TextField
                                                 fullWidth
-                                                label="Short Description"
+                                                label="Push Notification description"
                                                 value={alertMessage.shortDescription}
                                                 onChange={handleInputChange('shortDescription')}
                                             />
@@ -705,7 +705,7 @@ const AlertCentre: React.FC = () => {
                                                 <Grid item xs={12}>
                                                     <TextField
                                                         fullWidth
-                                                        label="Short Description"
+                                                        label="Push Notification description"
                                                         value={translation.shortDescription}
                                                         onChange={(e) => handleTranslationChange(index, 'shortDescription')(e)}
                                                     />
@@ -857,7 +857,7 @@ const AlertCentre: React.FC = () => {
                                         wordBreak: 'break-word'
                                     }}
                                 >
-                                    {alertMessage.shortDescription || 'Short Description'}
+                                    {alertMessage.shortDescription || 'Push Notification description'}
                                 </Typography>
                                 
                                 <Typography 

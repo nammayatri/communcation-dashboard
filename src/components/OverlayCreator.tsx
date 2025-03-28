@@ -22,12 +22,10 @@ import {
     List,
     ListItem,
     ListItemText,
-    LinearProgress,
     Chip,
     Paper,
     Tabs,
     Tab,
-    Divider,
 } from '@mui/material';
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
@@ -264,8 +262,15 @@ const OverlayCreator: React.FC = () => {
     }, {} as Record<string, string[]>);
 
     return (
-        <Box sx={{ display: 'flex', gap: 2, p: 2 }}>
-            <Card sx={{ flex: 1 }}>
+        <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            p: '0 16px 16px 16px',
+            height: '100vh',
+            overflow: 'hidden',
+            mb: 12
+        }}>
+            <Card sx={{ flex: 1, overflow: 'auto', height: '100%' }}>
                 <CardContent>
                     <Typography variant="h5" gutterBottom>
                         Overlay Configuration
@@ -316,32 +321,36 @@ const OverlayCreator: React.FC = () => {
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <FormControl fullWidth>
-                                <InputLabel>Action</InputLabel>
-                                <Select
-                                    value={config.actions[0]}
-                                    onChange={handleActionChange}
-                                    label="Action"
-                                >
-                                    <MenuItem value="OPEN_LINK">Open Link</MenuItem>
-                                    <MenuItem value="OPEN_APP">Open App</MenuItem>
-                                    <MenuItem value="SET_DRIVER_ONLINE">
-                                        Set Driver Online
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        {config.actions[0] === 'OPEN_LINK' && (
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Link URL"
-                                    value={config.link}
-                                    onChange={handleConfigChange('link')}
-                                    required
-                                />
+                            <Grid container spacing={2}>
+                                <Grid item xs={6}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Action</InputLabel>
+                                        <Select
+                                            value={config.actions[0]}
+                                            onChange={handleActionChange}
+                                            label="Action"
+                                        >
+                                            <MenuItem value="OPEN_LINK">Open Link</MenuItem>
+                                            <MenuItem value="OPEN_APP">Open App</MenuItem>
+                                            <MenuItem value="SET_DRIVER_ONLINE">
+                                                Set Driver Online
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                {config.actions[0] === 'OPEN_LINK' && (
+                                    <Grid item xs={6}>
+                                        <TextField
+                                            fullWidth
+                                            label="Link URL"
+                                            value={config.link}
+                                            onChange={handleConfigChange('link')}
+                                            required
+                                        />
+                                    </Grid>
+                                )}
                             </Grid>
-                        )}
+                        </Grid>
                         <Grid item xs={12}>
                             <Typography variant="h6" gutterBottom>
                                 Visibility Controls
@@ -510,139 +519,60 @@ const OverlayCreator: React.FC = () => {
                                 </Box>
                             )}
                         </Grid>
-                        <Grid item xs={12}>
-                            <Divider sx={{ my: 2 }} />
-                            <Typography variant="h6" gutterBottom>
-                                Device Tokens
-                            </Typography>
-                            <input
-                                accept=".csv"
-                                style={{ display: 'none' }}
-                                id="csv-file"
-                                type="file"
-                                onChange={handleCsvUpload}
-                            />
-                            <label htmlFor="csv-file">
-                                <Button
-                                    variant="contained"
-                                    component="span"
-                                    sx={{ mr: 2 }}
-                                >
-                                    Upload CSV
-                                </Button>
-                            </label>
-                            {csvFile && (
-                                <Typography
-                                    component="span"
-                                    variant="body2"
-                                    color="textSecondary"
-                                >
-                                    {csvFile.name}
-                                </Typography>
-                            )}
-                        </Grid>
-                        {isProcessing && (
-                            <Grid item xs={12}>
-                                <Paper elevation={3} sx={{ p: 2, mt: 2, mb: 2, backgroundColor: 'rgba(245, 245, 245, 0.9)' }}>
-                                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                                        Processing Notifications
-                                        <Chip 
-                                            label={`${progress.percentage}%`} 
-                                            color="primary" 
-                                            sx={{ ml: 2, fontWeight: 'bold' }} 
-                                            size="small"
-                                        />
-                                    </Typography>
-                                    
-                                    <LinearProgress 
-                                        variant="determinate" 
-                                        value={progress.percentage} 
-                                        sx={{ 
-                                            height: 10, 
-                                            borderRadius: 5,
-                                            mb: 2,
-                                            '& .MuiLinearProgress-bar': {
-                                                borderRadius: 5
-                                            }
-                                        }} 
-                                    />
-                                    
-                                    <Box sx={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-around', 
-                                        alignItems: 'center',
-                                        mt: 1
-                                    }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="body2" color="textSecondary" gutterBottom>
-                                                Total
-                                            </Typography>
-                                            <Chip 
-                                                label={progress.total} 
-                                                variant="outlined" 
-                                                sx={{ minWidth: '80px' }}
-                                            />
-                                        </Box>
-                                        
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="body2" color="textSecondary" gutterBottom>
-                                                Success
-                                            </Typography>
-                                            <Chip 
-                                                label={progress.success} 
-                                                color="success" 
-                                                sx={{ minWidth: '80px' }}
-                                            />
-                                        </Box>
-                                        
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="body2" color="textSecondary" gutterBottom>
-                                                Failed
-                                            </Typography>
-                                            <Chip 
-                                                label={progress.failed} 
-                                                color="error"
-                                                sx={{ minWidth: '80px' }}
-                                            />
-                                        </Box>
-                                        
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="body2" color="textSecondary" gutterBottom>
-                                                Processed
-                                            </Typography>
-                                            <Chip 
-                                                label={`${progress.success + progress.failed}/${progress.total}`}
-                                                color="primary"
-                                                variant="outlined"
-                                                sx={{ minWidth: '80px' }}
-                                            />
-                                        </Box>
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        )}
-                        <Grid item xs={12} sx={{ mt: 2 }}>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={handleSubmit}
-                                fullWidth
-                                disabled={isProcessing}
-                            >
-                                {isProcessing ? 'Sending...' : 'Send Overlay'}
-                            </Button>
-                        </Grid>
                     </Grid>
                 </CardContent>
             </Card>
-            <Card sx={{ flex: 1 }}>
-                <CardContent>
-                    <Typography variant="h5" gutterBottom>
-                        Preview
-                    </Typography>
-                    <OverlayPreview config={config} />
-                </CardContent>
-            </Card>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+                <Card sx={{ overflow: 'auto' }}>
+                    <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                            Device Tokens
+                        </Typography>
+                        <input
+                            accept=".csv"
+                            style={{ display: 'none' }}
+                            id="csv-file"
+                            type="file"
+                            onChange={handleCsvUpload}
+                        />
+                        <label htmlFor="csv-file">
+                            <Button
+                                variant="contained"
+                                component="span"
+                                sx={{ mr: 2 }}
+                            >
+                                Upload CSV
+                            </Button>
+                        </label>
+                        {csvFile && (
+                            <Typography
+                                component="span"
+                                variant="body2"
+                                color="textSecondary"
+                            >
+                                {csvFile.name}
+                            </Typography>
+                        )}
+                    </CardContent>
+                </Card>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSubmit}
+                    disabled={isProcessing}
+                    sx={{ width: '100%' }}
+                >
+                    {isProcessing ? 'Sending...' : 'Send Overlay'}
+                </Button>
+                <Card sx={{ flex: 1, overflow: 'auto', height: '100%' }}>
+                    <CardContent>
+                        <Typography variant="h5" gutterBottom>
+                            Preview
+                        </Typography>
+                        <OverlayPreview config={config} />
+                    </CardContent>
+                </Card>
+            </Box>
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}

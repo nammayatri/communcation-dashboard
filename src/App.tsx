@@ -3,18 +3,22 @@ import OverlayCreator from './components/OverlayCreator';
 import BannerDashboard from './components/BannerDashboard';
 import AlertCentre from './components/AlertCentre';
 import AlertCentreList from './components/AlertCentreList';
+import DataDownloader from './components/DataDownloader';
 import { useState } from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MessageIcon from '@mui/icons-material/Message';
 import WarningIcon from '@mui/icons-material/Warning';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import DownloadIcon from '@mui/icons-material/Download';
+import ImageIcon from '@mui/icons-material/Image';
 import LoginPage from './components/LoginPage';
 import ProfileMenu from './components/ProfileMenu';
 import { AuthProvider } from './contexts/AuthContext';
 import MessageList from './components/MessageList';
 import MessageDetails from './components/MessageDetails';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ImageUploader } from './components/ImageUploader';
 
 const theme = createTheme({
   palette: {
@@ -128,6 +132,22 @@ const Dashboard = () => {
         )}
       </Box>
       
+      <TabButton
+        onClick={() => navigate('/image-upload')}
+        startIcon={<ImageIcon />}
+        selected={location.pathname === '/image-upload'}
+      >
+        Get Image Link
+      </TabButton>
+
+      <TabButton
+        onClick={() => navigate('/download')}
+        startIcon={<DownloadIcon />}
+        selected={location.pathname === '/download'}
+      >
+        Download Data
+      </TabButton>
+
       <TabButton
         onClick={() => navigate('/overlay')}
         startIcon={<DashboardIcon />}
@@ -273,6 +293,9 @@ function App() {
               <Route path="messages" element={<MessageList />} />
               <Route path="overlay" element={<OverlayCreator />} />
               <Route path="banner" element={<BannerDashboard />} />
+              <Route path="download" element={<DataDownloader />} />
+              <Route path="image-upload" element={<ImageUploader />} />
+              <Route path="*" element={<Navigate to="/overlay" replace />} />
             </Route>
           </Routes>
         </AuthProvider>

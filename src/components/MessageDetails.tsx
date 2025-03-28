@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface MessageInfo {
@@ -48,8 +48,14 @@ interface DeliveryInfo {
 
 const MessageDetails: React.FC = () => {
     const { messageId } = useParams<{ messageId: string }>();
-    const { token, selectedMerchant, selectedCity } = useAuth();
+    const location = useLocation();
+    const { token: contextToken, selectedMerchant: contextMerchant, selectedCity: contextCity } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Use token from navigation state or fallback to context
+    const token = location.state?.token || contextToken;
+    const selectedMerchant = location.state?.selectedMerchant || contextMerchant;
+    const selectedCity = location.state?.selectedCity || contextCity;
 
     const [messageInfo, setMessageInfo] = useState<MessageInfo | null>(null);
     const [deliveryInfo, setDeliveryInfo] = useState<DeliveryInfo | null>(null);
@@ -109,7 +115,7 @@ const MessageDetails: React.FC = () => {
             console.log('Fetching message info for:', { messageId, selectedMerchant });
             
             // Fetch message info
-            const infoResponse = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/message/${messageId}/info`, {
+            const infoResponse = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/${messageId}/info`, {
                 headers: {
                     'Accept': 'application/json;charset=utf-8',
                     'token': token
@@ -133,7 +139,7 @@ const MessageDetails: React.FC = () => {
 
             // Fetch delivery info
             console.log('Fetching delivery info');
-            const deliveryResponse = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/message/${messageId}/deliveryInfo`, {
+            const deliveryResponse = await fetch(`/api/bpp/driver-offer/${selectedMerchant}/${selectedCity}/message/${messageId}/deliveryInfo`, {
                 headers: {
                     'Accept': 'application/json;charset=utf-8',
                     'token': token
@@ -408,8 +414,8 @@ const MessageDetails: React.FC = () => {
                                         <Typography paragraph>{messageInfo.title || 'No title'}</Typography>
                                     </Grid>
                                     <Grid item xs={12}>
-                                        <Typography variant="subtitle1" color="primary">Short Description</Typography>
-                                        <Typography paragraph>{messageInfo.shortDescription || 'No short description'}</Typography>
+                                        <Typography variant="subtitle1" color="primary">Push Notification description</Typography>
+                                        <Typography paragraph>{messageInfo.shortDescription || 'No Push Notification description'}</Typography>
                                     </Grid>
                                     <Grid item xs={12}>
                                         <Typography variant="subtitle1" color="primary">Description</Typography>
@@ -422,7 +428,7 @@ const MessageDetails: React.FC = () => {
                                                 <Paper key={index} sx={{ p: 2, mb: 2 }}>
                                                     <Typography variant="subtitle2" color="primary">{translation.language || 'Unknown Language'}</Typography>
                                                     <Typography variant="body2" gutterBottom>Title: {translation.title || 'No title'}</Typography>
-                                                    <Typography variant="body2" gutterBottom>Short Description: {translation.shortDescription || 'No short description'}</Typography>
+                                                    <Typography variant="body2" gutterBottom>Push Notification description: {translation.shortDescription || 'No Push Notification description'}</Typography>
                                                     <Typography variant="body2">Description: {translation.description || 'No description'}</Typography>
                                                 </Paper>
                                             ))}

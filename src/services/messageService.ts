@@ -193,7 +193,7 @@ export const validateMessagePayload = (payload: MessagePayload): { valid: boolea
   }
   
   if (!payload.shortDescription.trim()) {
-    errors.push('Short description is required');
+    errors.push('Push Notification description is required');
   }
   
   if (payload._type === 'Action' && !payload.actionLabel?.trim()) {

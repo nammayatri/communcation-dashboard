@@ -96,7 +96,13 @@ const AlertCentreList: React.FC = () => {
 
   const handleViewDetails = (messageId: string) => {
     console.log('Navigating to message details:', messageId);
-    navigate(`/message/${messageId}`);
+    navigate(`/message/${messageId}`, {
+      state: {
+        token,
+        selectedMerchant,
+        selectedCity
+      }
+    });
   };
 
   if (!selectedMerchant || !selectedCity) {

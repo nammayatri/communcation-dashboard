@@ -368,7 +368,7 @@ const MessageCreator: React.FC = () => {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Short Description"
+                    label="Push Notification description"
                     value={message.shortDescription}
                     onChange={handleMessageChange('shortDescription')}
                     required

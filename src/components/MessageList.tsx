@@ -128,7 +128,7 @@ const MessageList: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>Title</TableCell>
-              <TableCell>Short Description</TableCell>
+              <TableCell>Push Notification description</TableCell>
               <TableCell>Created At</TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
