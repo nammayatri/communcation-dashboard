@@ -280,7 +280,7 @@ const CodeSection = styled.div`
 `;
 
 const CodeOutput = styled.pre`
-  background: #f8f9fa;
+  background: #2d2d2d;
   padding: 1.5rem;
   border-radius: 8px;
   overflow-x: auto;
@@ -288,6 +288,7 @@ const CodeOutput = styled.pre`
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   line-height: 1.5;
   border: 1px solid #e0e0e0;
+  color: #ffffff;
 `;
 
 const CopyButton = styled.button`

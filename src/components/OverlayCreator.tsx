@@ -26,13 +26,17 @@ import {
     Paper,
     Tabs,
     Tab,
+    LinearProgress,
 } from '@mui/material';
 import { OverlayConfig, OverlayAction } from '../types/overlay';
 import OverlayPreview from './OverlayPreview';
 import { processCSVAndSendNotifications } from '../services/overlayService';
 import { parseServiceAccountFile, generateFCMTokenFromServiceAccount } from '../services/firebaseTokenService';
+import { useAuth } from '../contexts/AuthContext';
+import { scheduleOverlay } from '../services/schedulerService';
 
 const initialOverlayConfig: OverlayConfig = {
+    id: new Date().toISOString(),
     title: '',
     description: '',
     imageUrl: '',
@@ -48,7 +52,10 @@ const initialOverlayConfig: OverlayConfig = {
     buttonCancelVisibility: true,
     buttonLayoutVisibility: true,
     imageVisibility: true,
+    triggers: [],
 };
+
+const STORAGE_KEY = 'overlay_configs';
 
 const OverlayCreator: React.FC = () => {
     const [config, setConfig] = useState<OverlayConfig>(initialOverlayConfig);
@@ -63,23 +70,30 @@ const OverlayCreator: React.FC = () => {
         message: '',
         severity: 'success',
     });
-    const [failedTokens, setFailedTokens] = useState<{ token: string; error: string }[]>([]);
     const [showFailedTokens, setShowFailedTokens] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [progress, setProgress] = useState<{
-        total: number;
-        success: number;
-        failed: number;
-        percentage: number;
-    }>({
-        total: 0,
-        success: 0,
-        failed: 0,
-        percentage: 0,
-    });
     const [authMethod, setAuthMethod] = useState<'token' | 'serviceAccount'>('token');
     const [serviceAccountFile, setServiceAccountFile] = useState<File | null>(null);
     const [isGeneratingToken, setIsGeneratingToken] = useState(false);
+    const { user } = useAuth();
+    const [scheduledTime, setScheduledTime] = useState<string>('');
+    const [isScheduled, setIsScheduled] = useState(false);
+    const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+    const [currentProgress, setCurrentProgress] = useState<{
+        total: number;
+        processed: number;
+        success: number;
+        failed: number;
+        percentage: number;
+        failedTokens: { token: string; error: string }[];
+    }>({
+        total: 0,
+        processed: 0,
+        success: 0,
+        failed: 0,
+        percentage: 0,
+        failedTokens: []
+    });
 
     const handleConfigChange = (field: keyof OverlayConfig) => (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -202,44 +216,123 @@ const OverlayCreator: React.FC = () => {
         }
 
         setIsProcessing(true);
-        setProgress({
+        setProgressDialogOpen(true);
+        setCurrentProgress({
             total: 0,
+            processed: 0,
             success: 0,
             failed: 0,
             percentage: 0,
-        });
-        setSnackbar({
-            open: true,
-            message: 'Processing notifications...',
-            severity: 'info',
+            failedTokens: []
         });
 
         try {
-            const result = await processCSVAndSendNotifications(
-                csvFile!,
-                config,
-                fcmToken,
-                (progressUpdate) => {
-                    setProgress({
-                        total: progressUpdate.total,
-                        success: progressUpdate.success,
-                        failed: progressUpdate.failed,
-                        percentage: Math.floor((progressUpdate.processed / progressUpdate.total) * 100)
-                    });
+            // Save overlay config to local storage
+            const storedOverlays = localStorage.getItem(STORAGE_KEY);
+            const overlays = storedOverlays ? JSON.parse(storedOverlays) : [];
+            
+            // Add trigger information
+            const overlayWithTrigger = {
+                ...config,
+                triggers: [
+                    ...(config.triggers || []),
+                    {
+                        triggeredAt: new Date().toISOString(),
+                        triggeredBy: user?.email || 'Unknown User',
+                        successCount: 0,
+                        failedCount: 0,
+                        status: 'processing',
+                        result: {
+                            success: 0,
+                            failed: 0,
+                            failedTokens: [],
+                            progress: {
+                                currentBatch: 0,
+                                totalBatches: 0,
+                                processedLines: 0,
+                                totalLines: 0
+                            }
+                        }
+                    }
+                ]
+            };
+            
+            overlays.push(overlayWithTrigger);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(overlays));
+
+            if (isScheduled) {
+                if (!scheduledTime) {
+                    throw new Error('Please select a scheduled time');
                 }
-            );
 
-            setFailedTokens(result.failedTokens);
+                await scheduleOverlay(
+                    config,
+                    csvFile!,
+                    fcmToken,
+                    scheduledTime
+                );
 
-            const message = `Successfully sent ${result.success} notifications. Failed: ${result.failed}`;
-            setSnackbar({
-                open: true,
-                message,
-                severity: result.failed > 0 ? 'error' : 'success',
-            });
+                setSnackbar({
+                    open: true,
+                    message: 'Overlay scheduled successfully',
+                    severity: 'success',
+                });
+            } else {
+                const result = await processCSVAndSendNotifications(
+                    csvFile!,
+                    config,
+                    fcmToken,
+                    (progressUpdate) => {
+                        setCurrentProgress(prev => ({
+                            ...prev,
+                            total: progressUpdate.total,
+                            processed: progressUpdate.processed,
+                            success: progressUpdate.success,
+                            failed: progressUpdate.failed,
+                            percentage: Math.floor((progressUpdate.processed / progressUpdate.total) * 100),
+                            failedTokens: progressUpdate.failedTokens
+                        }));
+                    }
+                );
 
-            if (result.failed > 0) {
-                setShowFailedTokens(true);
+                // Update the trigger with actual success/failed counts
+                const updatedOverlays = overlays.map((overlay: OverlayConfig) => {
+                    if (overlay.id === config.id) {
+                        const latestTrigger = overlay.triggers[overlay.triggers.length - 1];
+                        return {
+                            ...overlay,
+                            triggers: [
+                                ...overlay.triggers.slice(0, -1),
+                                {
+                                    ...latestTrigger,
+                                    status: 'completed',
+                                    completedAt: new Date().toISOString(),
+                                    successCount: result.success,
+                                    failedCount: result.failed,
+                                    result: {
+                                        success: result.success,
+                                        failed: result.failed,
+                                        failedTokens: result.failedTokens || [],
+                                        progress: {
+                                            currentBatch: result.progress?.currentBatch || 0,
+                                            totalBatches: result.progress?.totalBatches || 0,
+                                            processedLines: result.progress?.processedLines || 0,
+                                            totalLines: result.progress?.totalLines || 0
+                                        }
+                                    }
+                                }
+                            ]
+                        };
+                    }
+                    return overlay;
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedOverlays));
+
+                setSnackbar({
+                    open: true,
+                    message: `Successfully sent ${result.success} notifications. Failed: ${result.failed}`,
+                    severity: result.failed > 0 ? 'error' : 'success',
+                });
             }
         } catch (error: any) {
             setSnackbar({
@@ -249,17 +342,18 @@ const OverlayCreator: React.FC = () => {
             });
         } finally {
             setIsProcessing(false);
+            setProgressDialogOpen(false);
         }
     };
 
     // Group errors by type
-    const groupedErrors = failedTokens.reduce((acc, curr) => {
+    const groupedErrors = currentProgress.failedTokens.reduce((acc: Record<string, string[]>, curr) => {
         if (!acc[curr.error]) {
             acc[curr.error] = [];
         }
         acc[curr.error].push(curr.token);
         return acc;
-    }, {} as Record<string, string[]>);
+    }, {});
 
     return (
         <Box sx={{ 
@@ -555,14 +649,45 @@ const OverlayCreator: React.FC = () => {
                         )}
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                            Schedule Options
+                        </Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={isScheduled}
+                                    onChange={(e) => setIsScheduled(e.target.checked)}
+                                />
+                            }
+                            label="Schedule for later"
+                        />
+                        {isScheduled && (
+                            <TextField
+                                type="datetime-local"
+                                label="Scheduled Time"
+                                value={scheduledTime}
+                                onChange={(e) => setScheduledTime(e.target.value)}
+                                fullWidth
+                                sx={{ mt: 2 }}
+                                InputLabelProps={{
+                                    shrink: true,
+                                }}
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+
                 <Button
                     variant="contained"
                     color="primary"
                     onClick={handleSubmit}
-                    disabled={isProcessing}
+                    disabled={isProcessing || (isScheduled && !scheduledTime)}
                     sx={{ width: '100%' }}
                 >
-                    {isProcessing ? 'Sending...' : 'Send Overlay'}
+                    {isProcessing ? 'Processing...' : isScheduled ? 'Schedule Overlay' : 'Send Overlay'}
                 </Button>
                 <Card sx={{ flex: 1, overflow: 'auto', height: '100%' }}>
                     <CardContent>
@@ -595,9 +720,9 @@ const OverlayCreator: React.FC = () => {
                 <DialogTitle sx={{ bgcolor: '#f8f8f8', borderBottom: '1px solid #eee' }}>
                     <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                         Notification Results Summary
-                        {progress.failed > 0 && (
+                        {currentProgress.failed > 0 && (
                             <Chip 
-                                label={`${progress.failed} Failed`} 
+                                label={`${currentProgress.failed} Failed`} 
                                 color="error" 
                                 size="small"
                                 sx={{ ml: 2 }}
@@ -617,25 +742,25 @@ const OverlayCreator: React.FC = () => {
                             justifyContent: 'space-around' 
                         }}>
                             <Chip 
-                                label={`Total: ${progress.total}`} 
+                                label={`Total: ${currentProgress.total}`} 
                                 variant="outlined" 
                                 icon={<span style={{ marginLeft: '8px' }}>📊</span>}
                             />
                             <Chip 
-                                label={`Success: ${progress.success}`} 
+                                label={`Success: ${currentProgress.success}`} 
                                 color="success" 
                                 variant="outlined"
                                 icon={<span style={{ marginLeft: '8px' }}>✅</span>}
                             />
                             <Chip 
-                                label={`Failed: ${progress.failed}`} 
+                                label={`Failed: ${currentProgress.failed}`} 
                                 color="error" 
                                 variant="outlined"
                                 icon={<span style={{ marginLeft: '8px' }}>❌</span>}
                             />
                             <Chip 
-                                label={`Success Rate: ${Math.round((progress.success / progress.total) * 100)}%`} 
-                                color={progress.success > progress.failed ? "success" : "error"}
+                                label={`Success Rate: ${Math.round((currentProgress.success / currentProgress.total) * 100)}%`} 
+                                color={currentProgress.success > currentProgress.failed ? "success" : "error"}
                                 icon={<span style={{ marginLeft: '8px' }}>📈</span>}
                             />
                         </Box>
@@ -711,7 +836,7 @@ const OverlayCreator: React.FC = () => {
                                 All notifications sent successfully!
                             </Typography>
                             <Typography variant="body2" color="textSecondary">
-                                {progress.total} notifications were processed without any errors.
+                                {currentProgress.total} notifications were processed without any errors.
                             </Typography>
                         </Box>
                     )}
@@ -725,8 +850,67 @@ const OverlayCreator: React.FC = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Dialog
+                open={progressDialogOpen}
+                onClose={() => {}}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    Processing Overlay Notifications
+                    <Typography variant="subtitle2" color="text.secondary">
+                        {currentProgress.processed} of {currentProgress.total} processed
+                    </Typography>
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2">
+                                Progress: {currentProgress.percentage}%
+                            </Typography>
+                            <Typography variant="body2">
+                                Success: {currentProgress.success} | Failed: {currentProgress.failed}
+                            </Typography>
+                        </Box>
+                        <LinearProgress 
+                            variant="determinate" 
+                            value={currentProgress.percentage}
+                            sx={{ height: 10, borderRadius: 5 }}
+                        />
+                    </Box>
+
+                    {currentProgress.failedTokens.length > 0 && (
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Failed Notifications ({currentProgress.failedTokens.length})
+                            </Typography>
+                            <Paper sx={{ maxHeight: 300, overflow: 'auto' }}>
+                                <List dense>
+                                    {currentProgress.failedTokens.map((failed, index) => (
+                                        <ListItem key={index} divider>
+                                            <ListItemText
+                                                primary={`Token: ${failed.token}`}
+                                                secondary={`Error: ${failed.error}`}
+                                            />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </Paper>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button 
+                        onClick={() => setProgressDialogOpen(false)}
+                        disabled={isProcessing}
+                    >
+                        {isProcessing ? 'Processing...' : 'Close'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
 
-export default OverlayCreator; 
+export default OverlayCreator;

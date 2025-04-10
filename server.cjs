@@ -7,6 +7,16 @@ const axios = require('axios');
 const { JWT } = require('google-auth-library');
 const path = require('path');
 const fs = require('fs');
+// Import the Clickhouse service - using dynamic import for ES modules
+let clickhouseService;
+(async () => {
+  try {
+    clickhouseService = await import('./dist/services/clickhouseService.js');
+    console.log('Clickhouse service imported successfully');
+  } catch (error) {
+    console.error('Error importing Clickhouse service:', error);
+  }
+})();
 
 // Create Express app
 const app = express();
@@ -72,9 +82,9 @@ const createProxyMiddleware = async (req, res) => {
   }
 };
 
-// Route all API requests to the proxy middleware, except for generate-fcm-token
+// Route all API requests to the proxy middleware, except for generate-fcm-token and download-data
 app.all('/api/*', (req, res, next) => {
-  if (req.path === '/api/generate-fcm-token') {
+  if (req.path === '/api/generate-fcm-token' || req.path === '/api/download-data') {
     return next();
   }
   createProxyMiddleware(req, res);
@@ -110,6 +120,121 @@ app.post('/api/generate-fcm-token', async (req, res) => {
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
+
+// Add data download endpoint
+app.get('/api/download-data', async (req, res) => {
+  try {
+    const { city, variant } = req.query;
+    
+    if (!city) {
+      return res.status(400).json({ error: 'City parameter is required' });
+    }
+
+    console.log('Received request for city:', city, 'variant:', variant);
+
+    // Get the absolute paths
+    const rootDir = process.cwd();
+    const pythonScript = path.resolve(rootDir, 'scripts', 'Clickhouse_connect.py');
+    const venvPython = path.resolve(rootDir, 'venv', 'bin', 'python3');
+
+    // Generate timestamped filename
+    const timestamp = new Date().toISOString()
+      .replace(/[-:]/g, '')  // Remove dashes and colons
+      .replace('T', '_')     // Replace T with underscore
+      .slice(0, 15);         // Get YYYYMMDD_HHMMSS
+    const outputFilename = `${city}_${variant || 'ALL'}_${timestamp}.csv`;
+    const outputPath = path.resolve(rootDir, outputFilename);
+
+    console.log('Working directory:', rootDir);
+    console.log('Python script path:', pythonScript);
+    console.log('Python interpreter path:', venvPython);
+    console.log('Output file path:', outputPath);
+
+    // Verify paths exist
+    if (!fs.existsSync(pythonScript)) {
+      console.error('Python script not found at:', pythonScript);
+      return res.status(500).json({ error: 'Python script not found' });
+    }
+
+    if (!fs.existsSync(venvPython)) {
+      console.error('Python interpreter not found at:', venvPython);
+      return res.status(500).json({ error: 'Python interpreter not found' });
+    }
+
+    // Execute the Python script with the output filename
+    const command = `${venvPython} "${pythonScript}" "${city}" "${variant || 'ALL'}" "${outputFilename}"`;
+    console.log('Executing command:', command);
+
+    const { exec } = require('child_process');
+    await new Promise((resolve, reject) => {
+      exec(command, {
+        cwd: rootDir
+      }, (error, stdout, stderr) => {
+        if (error) {
+          console.error('Error executing Python script:', error);
+          console.error('stderr:', stderr);
+          reject(error);
+          return;
+        }
+        if (stderr) {
+          console.warn('Python script warnings:', stderr);
+        }
+        console.log('Python script output:', stdout);
+        resolve(null);
+      });
+    });
+
+    // Check if output file exists
+    console.log('Looking for output file at:', outputPath);
+
+    if (!fs.existsSync(outputPath)) {
+      console.error('Output file not found at:', outputPath);
+      return res.status(500).json({ error: 'Output file was not generated' });
+    }
+
+    console.log('Output file found, sending response...');
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=${outputFilename}`);
+    
+    // Stream the file to the response
+    const fileStream = fs.createReadStream(outputPath);
+    fileStream.pipe(res);
+
+    // Clean up the file after streaming
+    fileStream.on('end', () => {
+      console.log('File streaming completed, cleaning up...');
+      fs.unlinkSync(outputPath);
+      console.log('Output file deleted');
+    });
+
+    fileStream.on('error', (err) => {
+      console.error('Error streaming file:', err);
+      res.status(500).json({ error: 'Error streaming file' });
+    });
+  } catch (error) {
+    console.error('Error downloading data:', error);
+    res.status(500).json({ error: 'Failed to download data' });
+  }
+});
+
+// Helper function to convert data to CSV
+function convertToCSV(data) {
+  if (!data || data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const csvRows = [
+    headers.join(','), // Header row
+    ...data.map(row => 
+      headers.map(header => 
+        JSON.stringify(row[header] ?? '')
+      ).join(',')
+    )
+  ];
+  
+  return csvRows.join('\n');
+}
 
 // Default route
 app.get('/', (req, res) => {

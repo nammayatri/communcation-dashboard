@@ -61,13 +61,13 @@ apiClient.interceptors.response.use(
 interface AuthContextProps {
   isAuthenticated: boolean;
   token: string | null;
-  profile: UserProfile | null;
+  user: UserProfile | null;
+  selectedMerchant: string | null;
+  selectedCity: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
   error: string | null;
-  selectedMerchant: string | null;
-  selectedCity: string | null;
   setSelectedMerchant: (merchant: string) => void;
   setSelectedCity: (city: string) => void;
   switchMerchantAndCity: (merchantId: string, city: string) => Promise<boolean>;
@@ -84,7 +84,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('token');
     setToken(null);
     setIsAuthenticated(false);
-    setProfile(null);
+    setUser(null);
     setSelectedMerchant(null);
     setSelectedCity(null);
   };
@@ -145,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Profile response:', response.data);
       
       if (response.data) {
-        setProfile(response.data);
+        setUser(response.data);
         
         // Set initial merchant if not already set
         if (!selectedMerchant && response.data.availableMerchants.length > 0) {
@@ -184,14 +184,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (profile && profile.availableMerchants.length > 0 && !selectedMerchant) {
-      setSelectedMerchant(profile.availableMerchants[0]);
+    if (user && user.availableMerchants.length > 0 && !selectedMerchant) {
+      setSelectedMerchant(user.availableMerchants[0]);
     }
-  }, [profile, selectedMerchant]);
+  }, [user, selectedMerchant]);
 
   useEffect(() => {
-    if (profile && selectedMerchant) {
-      const merchantCities = profile.availableCitiesForMerchant.find(
+    if (user && selectedMerchant) {
+      const merchantCities = user.availableCitiesForMerchant.find(
         city => city.merchantShortId === selectedMerchant
       );
       
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSelectedCity(merchantCities.operatingCity[0]);
       }
     }
-  }, [profile, selectedMerchant, selectedCity]);
+  }, [user, selectedMerchant, selectedCity]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
@@ -332,13 +332,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     <AuthContext.Provider value={{
       isAuthenticated,
       token,
-      profile,
+      user,
+      selectedMerchant,
+      selectedCity,
       login,
       logout,
       loading,
       error,
-      selectedMerchant,
-      selectedCity,
       setSelectedMerchant,
       setSelectedCity,
       switchMerchantAndCity,

@@ -1,5 +1,6 @@
 import { Box, Button, styled, IconButton, Drawer, useMediaQuery, AppBar, Toolbar, Typography, createTheme, ThemeProvider } from '@mui/material';
 import OverlayCreator from './components/OverlayCreator';
+import OverlayListView from './components/OverlayListView';
 import BannerDashboard from './components/BannerDashboard';
 import AlertCentre from './components/AlertCentre';
 import AlertCentreList from './components/AlertCentreList';
@@ -19,6 +20,7 @@ import MessageList from './components/MessageList';
 import MessageDetails from './components/MessageDetails';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ImageUploader } from './components/ImageUploader';
+import ScheduledOverlays from './components/ScheduledOverlays';
 
 const theme = createTheme({
   palette: {
@@ -157,6 +159,14 @@ const Dashboard = () => {
       </TabButton>
       
       <TabButton
+        onClick={() => navigate('/overlay/scheduled')}
+        startIcon={<DashboardIcon />}
+        selected={location.pathname === '/overlay/scheduled'}
+      >
+        Scheduled Overlays
+      </TabButton>
+
+      <TabButton
         onClick={() => navigate('/banner')}
         startIcon={<MessageIcon />}
         selected={location.pathname === '/banner'}
@@ -291,7 +301,9 @@ function App() {
               <Route path="alert-centre/create" element={<AlertCentre />} />
               <Route path="message/:messageId" element={<MessageDetails />} />
               <Route path="messages" element={<MessageList />} />
-              <Route path="overlay" element={<OverlayCreator />} />
+              <Route path="overlay" element={<OverlayListView />} />
+              <Route path="overlay/create" element={<OverlayCreator />} />
+              <Route path="overlay/scheduled" element={<ScheduledOverlays />} />
               <Route path="banner" element={<BannerDashboard />} />
               <Route path="download" element={<DataDownloader />} />
               <Route path="image-upload" element={<ImageUploader />} />

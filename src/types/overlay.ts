@@ -1,6 +1,29 @@
 export type OverlayAction = 'OPEN_LINK' | 'OPEN_APP' | 'SET_DRIVER_ONLINE';
 
+export interface OverlayTrigger {
+  triggeredAt: string;
+  triggeredBy: string;
+  successCount: number;
+  failedCount: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  completedAt?: string;
+  result?: {
+    success: number;
+    failed: number;
+    failedTokens: { token: string; error: string }[];
+    progress?: {
+      currentBatch: number;
+      totalBatches: number;
+      processedLines: number;
+      totalLines: number;
+    };
+  };
+  error?: string;
+  retryCount?: number;
+}
+
 export interface OverlayConfig {
+    id: string;  // Unique identifier for each overlay
     title: string;
     description: string;
     imageUrl: string;
@@ -16,6 +39,7 @@ export interface OverlayConfig {
     buttonCancelVisibility: boolean;
     buttonLayoutVisibility: boolean;
     imageVisibility: boolean;
+    triggers: OverlayTrigger[];  // Array of trigger events
 }
 
 export interface FCMPayload {
@@ -32,4 +56,12 @@ export interface FCMPayload {
             }
         }
     }
+}
+
+export interface ProgressUpdate {
+    total: number;
+    processed: number;
+    success: number;
+    failed: number;
+    failedTokens: { token: string; error: string }[];
 } 

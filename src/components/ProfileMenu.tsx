@@ -60,7 +60,7 @@ const SelectText = styled(Box)(({ }) => ({
 
 const ProfileMenu: React.FC = () => {
   const {
-    profile,
+    user,
     logout,
     selectedMerchant,
     selectedCity,
@@ -71,8 +71,8 @@ const ProfileMenu: React.FC = () => {
   } = useAuth();
 
   console.log('ProfileMenu render:', {
-    hasProfile: !!profile,
-    profileData: profile,
+    hasProfile: !!user,
+    profileData: user,
     selectedMerchant,
     selectedCity,
     loading
@@ -112,13 +112,13 @@ const ProfileMenu: React.FC = () => {
   };
 
   const handleMerchantSelect = async (merchantId: string) => {
-    if (!profile) return;
+    if (!user) return;
     
     setLocalLoading(true);
     
     // Find default city for this merchant
-    const merchantCities = profile.availableCitiesForMerchant.find(
-      (city) => city.merchantShortId === merchantId
+    const merchantCities = user.availableCitiesForMerchant.find(
+      (city: { merchantShortId: string }) => city.merchantShortId === merchantId
     );
     
     // Select first city by default
@@ -163,7 +163,7 @@ const ProfileMenu: React.FC = () => {
   };
 
   // If no profile, show a login button or loading state
-  if (!profile) {
+  if (!user) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '64px', padding: '0 16px' }}>
         <Button 
@@ -182,11 +182,11 @@ const ProfileMenu: React.FC = () => {
     );
   }
 
-  const userInitials = getInitials(profile.firstName, profile.lastName);
+  const userInitials = getInitials(user.firstName, user.lastName);
 
   // Find available cities for selected merchant
-  const merchantCities = profile.availableCitiesForMerchant.find(
-    (city) => city.merchantShortId === selectedMerchant
+  const merchantCities = user.availableCitiesForMerchant.find(
+    (city: { merchantShortId: string }) => city.merchantShortId === selectedMerchant
   );
 
   // Group cities by region for the dropdown
@@ -315,7 +315,7 @@ const ProfileMenu: React.FC = () => {
                 {userInitials}
               </Avatar>
               <Chip
-                label={profile.role.name.replace('_', ' ')}
+                label={user.role.name.replace('_', ' ')}
                 size="small"
                 color="primary"
                 sx={{ 
@@ -346,7 +346,7 @@ const ProfileMenu: React.FC = () => {
           sx: { minWidth: 200, maxHeight: 400 }
         }}
       >
-        {profile.availableMerchants.map((merchant) => (
+        {user?.availableMerchants.map((merchant: string) => (
           <MenuItem 
             key={merchant} 
             selected={merchant === selectedMerchant}
@@ -419,13 +419,13 @@ const ProfileMenu: React.FC = () => {
       >
         <Box sx={{ p: 2, pb: 1 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {profile.firstName} {profile.lastName}
+            {user.firstName} {user.lastName}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {profile.email}
+            {user.email}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {profile.mobileCountryCode} {profile.mobileNumber}
+            {user.mobileCountryCode} {user.mobileNumber}
           </Typography>
         </Box>
         <Divider />

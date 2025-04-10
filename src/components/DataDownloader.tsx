@@ -27,19 +27,18 @@ const VARIANT_OPTIONS = [
 ];
 
 const DataDownloader: React.FC = () => {
-  const { profile } = useAuth();
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const { user } = useAuth();
+  const [selectedCity, setSelectedCity] = useState<CityOption | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string>('ALL');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Get available cities from user profile
-  const availableCities: CityOption[] = profile?.availableCitiesForMerchant
-    .flatMap(merchant => merchant.operatingCity)
-    .map(cityCode => ({
+  const availableCities: CityOption[] = user?.availableCitiesForMerchant
+    .flatMap((merchant: { operatingCity: string[] }) => merchant.operatingCity)
+    .map((cityCode: string) => ({
       code: cityCode,
-      name: getCityNameFromCode(cityCode),
+      name: getCityNameFromCode(cityCode)
     })) || [];
 
   const handleDownload = async () => {
@@ -53,34 +52,33 @@ const DataDownloader: React.FC = () => {
     setSuccess(null);
 
     try {
-      // TODO: Replace with actual API endpoint and query
-      const response = await fetch(`/api/download-data?city=${selectedCity}&variant=${selectedVariant}`, {
-        headers: {
-          'token': localStorage.getItem('token') || '',
-        },
-      });
+      const response = await fetch(
+        `/api/download-data?city=${encodeURIComponent(selectedCity.name)}&variant=${selectedVariant}`,
+        {
+          headers: {
+            'token': localStorage.getItem('token') || '',
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to download data');
       }
 
-      // Get the blob from the response
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `data_${selectedCity.name.replace(/\s+/g, '_')}_${selectedVariant.toLowerCase()}.csv`;
+
       const blob = await response.blob();
-      
-      // Create a URL for the blob
       const url = window.URL.createObjectURL(blob);
-      
-      // Create a temporary link element
       const link = document.createElement('a');
       link.href = url;
-      link.download = `data_${selectedCity}_${selectedVariant.toLowerCase()}.csv`;
-      
-      // Append to body, click, and remove
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // Clean up the URL
       window.URL.revokeObjectURL(url);
 
       setSuccess('Data downloaded successfully');
@@ -102,8 +100,11 @@ const DataDownloader: React.FC = () => {
           <FormControl fullWidth>
             <InputLabel>Select City</InputLabel>
             <Select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
+              value={selectedCity?.code || ''}
+              onChange={(e) => {
+                const selected = availableCities.find(city => city.code === e.target.value);
+                setSelectedCity(selected || null);
+              }}
               label="Select City"
             >
               {availableCities.map((city) => (
@@ -161,4 +162,4 @@ const DataDownloader: React.FC = () => {
   );
 };
 
-export default DataDownloader; 
+export default DataDownloader;

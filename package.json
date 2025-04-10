@@ -1,7 +1,7 @@
 {
   "name": "communication-dashboard",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"node server.cjs\"",
@@ -9,27 +9,36 @@
     "vercel-build": "tsc -b && vite build",
     "server": "node server.cjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test-clickhouse": "node test-clickhouse.js",
+    "build:ts": "tsc -b",
+    "test-clickhouse-direct": "node test-clickhouse-direct.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@clickhouse/client": "^0.2.10",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.8",
     "@mui/material": "^6.4.8",
     "@mui/x-date-pickers": "^7.28.0",
+    "@types/node": "^22.14.0",
     "@types/papaparse": "^5.3.15",
     "@types/styled-components": "^5.1.34",
     "axios": "^1.8.4",
+    "bull": "^4.16.5",
     "cors": "^2.8.5",
+    "csv-parse": "^5.6.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "firebase": "^11.4.0",
     "google-auth-library": "^9.4.2",
     "googleapis": "^146.0.0",
     "multer": "^1.4.5-lts.2",
+    "next": "^15.3.0",
     "papaparse": "^5.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

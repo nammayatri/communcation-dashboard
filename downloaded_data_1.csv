@@ -1,0 +1,1 @@
+{"error":"Failed to download data","details":"Python script failed: Traceback (most recent call last):\n  File \"/Users/pranav.gupta/Desktop/communcation-dashboard/Clickhouse_connect.py\", line 1, in <module>\n    from clickhouse_driver import Client\nModuleNotFoundError: No module named 'clickhouse_driver'\n"}
