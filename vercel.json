@@ -32,6 +32,20 @@
       "dest": "/dist/$1.$2"
     },
     {
+      "src": "^/$",
+      "status": 308,
+      "headers": {
+        "Location": "/login"
+      }
+    },
+    {
+      "src": "^/login$|^/alert-centre$|^/overlay$|^/banner$|^/download$|^/image-upload$",
+      "dest": "/dist/index.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/index.html"
     }

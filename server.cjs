@@ -34,7 +34,14 @@ if (fs.existsSync(distPath)) {
 }
 
 // Enable CORS for all routes
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://communication-dashboard.vercel.app', 'https://dashboard.moving.tech']
+    : 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'token']
+}));
 app.use(express.json());
 
 // Base URL for the target API
@@ -238,7 +245,7 @@ function convertToCSV(data) {
 
 // Default route
 app.get('/', (req, res) => {
-  res.json({ message: 'API proxy server is running' });
+  res.redirect('/login');
 });
 
 // Add a simple test endpoint

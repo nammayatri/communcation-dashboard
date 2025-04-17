@@ -5,9 +5,11 @@ import { getCityNameFromCode } from '../utils/cityUtils';
 
 // Create a custom axios instance with interceptors for CORS
 const apiClient = axios.create({
-  baseURL: '/api', // This will be proxied to http://localhost:3001/api
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? 'https://communication-dashboard.vercel.app/api'
+    : '/api',
   timeout: 15000,
-  withCredentials: false, // Don't send cookies by default, which can cause CORS issues
+  withCredentials: true,
 });
 
 // Debug the proxy setup
