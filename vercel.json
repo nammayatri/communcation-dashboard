@@ -39,7 +39,7 @@
       }
     },
     {
-      "src": "^/login$|^/alert-centre$|^/overlay$|^/banner$|^/download$|^/image-upload$",
+      "src": "^/login$|^/alert-centre$|^/overlay$|^/banner$|^/download$|^/image-upload$|^/messages$|^/message/.*$",
       "dest": "/dist/index.html"
     },
     {
@@ -49,6 +49,17 @@
       "src": "/(.*)",
       "dest": "/dist/index.html"
     }
+  ],
+  "redirects": [
+    {
+      "source": "https://communcation-dashboard.vercel.app/(.*)",
+      "destination": "https://communication-dashboard.vercel.app/$1",
+      "permanent": true
+    }
+  ],
+  "domains": [
+    "communication-dashboard.vercel.app",
+    "communcation-dashboard.vercel.app"
   ],
   "github": {
     "silent": true
