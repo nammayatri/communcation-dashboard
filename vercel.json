@@ -28,7 +28,7 @@
       "dest": "/dist/favicon.ico"
     },
     {
-      "src": "/(.*)\\.(.+)",
+      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico|json)$",
       "dest": "/dist/$1.$2"
     },
     {
@@ -39,27 +39,12 @@
       }
     },
     {
-      "src": "^/login$|^/alert-centre$|^/overlay$|^/banner$|^/download$|^/image-upload$|^/messages$|^/message/.*$",
-      "dest": "/dist/index.html"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/dist/index.html"
+      "dest": "/dist/index.html",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     }
-  ],
-  "redirects": [
-    {
-      "source": "https://communcation-dashboard.vercel.app/(.*)",
-      "destination": "https://communication-dashboard.vercel.app/$1",
-      "permanent": true
-    }
-  ],
-  "domains": [
-    "communication-dashboard.vercel.app",
-    "communcation-dashboard.vercel.app"
   ],
   "github": {
     "silent": true
