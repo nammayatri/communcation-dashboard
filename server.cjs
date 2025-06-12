@@ -1,17 +1,21 @@
 // @ts-nocheck
 // Development server to handle API requests and serve static files
 // This file uses CommonJS format for Node.js compatibility
+require('dotenv').config();
+console.log('CLICKHOUSE_HOST:', process.env.CLICKHOUSE_HOST);
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const { JWT } = require('google-auth-library');
 const path = require('path');
 const fs = require('fs');
+const { createClient } = require('@clickhouse/client');
 // Import the Clickhouse service - using dynamic import for ES modules
 let clickhouseService;
 (async () => {
   try {
-    clickhouseService = await import('./dist/services/clickhouseService.js');
+    clickhouseService = await import('./dist-server/services/clickhouseService.js');
     console.log('Clickhouse service imported successfully');
   } catch (error) {
     console.error('Error importing Clickhouse service:', error);
@@ -21,17 +25,6 @@ let clickhouseService;
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Check if dist directory exists
-const distPath = path.join(__dirname, 'dist');
-console.log('Looking for dist directory at:', distPath);
-if (fs.existsSync(distPath)) {
-  console.log('Dist directory found! Contents:', fs.readdirSync(distPath));
-  // Serve static files from the dist directory
-  app.use(express.static(distPath));
-} else {
-  console.log('WARNING: Dist directory not found at:', distPath);
-}
 
 // Enable CORS for all routes
 app.use(cors({
@@ -102,30 +95,77 @@ app.post('/api/generate-fcm-token', async (req, res) => {
   try {
     const { serviceAccount } = req.body;
 
-    if (!serviceAccount || !serviceAccount.client_email || !serviceAccount.private_key) {
+    // Enhanced validation
+    if (!serviceAccount) {
       return res.status(400).json({ 
-        error: 'Invalid service account: Missing required fields (client_email or private_key)' 
+        error: 'Service account data is required' 
+      });
+    }
+
+    if (!serviceAccount.client_email || typeof serviceAccount.client_email !== 'string') {
+      return res.status(400).json({ 
+        error: 'Invalid service account: client_email is required and must be a string' 
+      });
+    }
+
+    if (!serviceAccount.private_key || typeof serviceAccount.private_key !== 'string') {
+      return res.status(400).json({ 
+        error: 'Invalid service account: private_key is required and must be a string' 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(serviceAccount.client_email)) {
+      return res.status(400).json({ 
+        error: 'Invalid service account: client_email must be a valid email address' 
+      });
+    }
+
+    // Validate private key format (should start with -----BEGIN PRIVATE KEY-----)
+    if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
+      return res.status(400).json({ 
+        error: 'Invalid service account: private_key must be in the correct PEM format' 
       });
     }
 
     // Create JWT client using service account credentials
-    const jwtClient = new JWT(
-      serviceAccount.client_email,
-      '',  // Using empty string instead of null
-      serviceAccount.private_key,
-      ['https://www.googleapis.com/auth/firebase.messaging'],
-      undefined  // Using undefined instead of null
-    );
+    const jwtClient = new JWT({
+      email: serviceAccount.client_email,
+      key: serviceAccount.private_key,
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+    });
 
     // Get access token
     const token = await jwtClient.authorize();
+    
+    if (!token || !token.access_token) {
+      throw new Error('Failed to obtain access token from Google');
+    }
     
     // Return the token with Bearer prefix
     return res.status(200).json({ token: `Bearer ${token.access_token}` });
   } catch (error) {
     console.error('Error generating FCM token:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    
+    // Enhanced error response
+    const errorMessage = error.message || 'Internal server error';
+    const errorDetails = {
+      message: errorMessage,
+      type: error.name,
+      code: error.code || 'UNKNOWN_ERROR'
+    };
+    
+    return res.status(500).json({ 
+      error: 'Failed to generate FCM token',
+      details: errorDetails
+    });
   }
+});
+
+// Add API routes before static file serving
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API server is running!' });
 });
 
 // Add data download endpoint
@@ -138,119 +178,47 @@ app.get('/api/download-data', async (req, res) => {
     }
 
     console.log('Received request for city:', city, 'variant:', variant);
+    console.log('clickhouseService:', clickhouseService);
+    console.log('downloadData function:', clickhouseService?.downloadData);
 
-    // Get the absolute paths
-    const rootDir = process.cwd();
-    const pythonScript = path.resolve(rootDir, 'scripts', 'Clickhouse_connect.py');
-    const venvPython = path.resolve(rootDir, 'venv', 'bin', 'python3');
-
-    // Generate timestamped filename
-    const timestamp = new Date().toISOString()
-      .replace(/[-:]/g, '')  // Remove dashes and colons
-      .replace('T', '_')     // Replace T with underscore
-      .slice(0, 15);         // Get YYYYMMDD_HHMMSS
-    const outputFilename = `${city}_${variant || 'ALL'}_${timestamp}.csv`;
-    const outputPath = path.resolve(rootDir, outputFilename);
-
-    console.log('Working directory:', rootDir);
-    console.log('Python script path:', pythonScript);
-    console.log('Python interpreter path:', venvPython);
-    console.log('Output file path:', outputPath);
-
-    // Verify paths exist
-    if (!fs.existsSync(pythonScript)) {
-      console.error('Python script not found at:', pythonScript);
-      return res.status(500).json({ error: 'Python script not found' });
+    if (!clickhouseService) {
+      throw new Error('Clickhouse service not initialized');
     }
 
-    if (!fs.existsSync(venvPython)) {
-      console.error('Python interpreter not found at:', venvPython);
-      return res.status(500).json({ error: 'Python interpreter not found' });
+    if (!clickhouseService.downloadData) {
+      throw new Error('downloadData function not found in clickhouseService');
     }
 
-    // Execute the Python script with the output filename
-    const command = `${venvPython} "${pythonScript}" "${city}" "${variant || 'ALL'}" "${outputFilename}"`;
-    console.log('Executing command:', command);
+    // Execute query using the service's downloadData function
+    console.log('Executing downloadData...');
+    const result = await clickhouseService.downloadData(city, variant);
+    console.log('Got result:', result?.substring(0, 100));
 
-    const { exec } = require('child_process');
-    await new Promise((resolve, reject) => {
-      exec(command, {
-        cwd: rootDir
-      }, (error, stdout, stderr) => {
-        if (error) {
-          console.error('Error executing Python script:', error);
-          console.error('stderr:', stderr);
-          reject(error);
-          return;
-        }
-        if (stderr) {
-          console.warn('Python script warnings:', stderr);
-        }
-        console.log('Python script output:', stdout);
-        resolve(null);
-      });
-    });
-
-    // Check if output file exists
-    console.log('Looking for output file at:', outputPath);
-
-    if (!fs.existsSync(outputPath)) {
-      console.error('Output file not found at:', outputPath);
-      return res.status(500).json({ error: 'Output file was not generated' });
-    }
-
-    console.log('Output file found, sending response...');
-
-    // Set headers for file download
+    // Set headers for CSV download
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=${outputFilename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${city}_${variant || 'ALL'}_${new Date().toISOString().slice(0, 10)}.csv"`);
     
-    // Stream the file to the response
-    const fileStream = fs.createReadStream(outputPath);
-    fileStream.pipe(res);
-
-    // Clean up the file after streaming
-    fileStream.on('end', () => {
-      console.log('File streaming completed, cleaning up...');
-      fs.unlinkSync(outputPath);
-      console.log('Output file deleted');
-    });
-
-    fileStream.on('error', (err) => {
-      console.error('Error streaming file:', err);
-      res.status(500).json({ error: 'Error streaming file' });
-    });
+    // Send the CSV data directly
+    res.send(result);
   } catch (error) {
     console.error('Error downloading data:', error);
-    res.status(500).json({ error: 'Failed to download data' });
+    res.status(500).json({ error: 'Failed to download data: ' + error.message });
   }
 });
 
-// Helper function to convert data to CSV
-function convertToCSV(data) {
-  if (!data || data.length === 0) return '';
-  
-  const headers = Object.keys(data[0]);
-  const csvRows = [
-    headers.join(','), // Header row
-    ...data.map(row => 
-      headers.map(header => 
-        JSON.stringify(row[header] ?? '')
-      ).join(',')
-    )
-  ];
-  
-  return csvRows.join('\n');
+// Check if dist directory exists and serve static files
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) {
+  console.log('Dist directory found! Contents:', fs.readdirSync(distPath));
+  // Serve static files from the dist directory
+  app.use(express.static(distPath));
+} else {
+  console.log('WARNING: Dist directory not found at:', distPath);
 }
 
 // Default route
 app.get('/', (req, res) => {
   res.redirect('/login');
-});
-
-// Add a simple test endpoint
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API server is running!' });
 });
 
 // Debug endpoint to check server status
@@ -296,7 +264,7 @@ app.get('*', (req, res, next) => {
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
 
 // Export the Express app for Vercel

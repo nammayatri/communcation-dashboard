@@ -1,0 +1,2 @@
+clickhouse-connect==0.6.23
+setuptools==69.2.0 

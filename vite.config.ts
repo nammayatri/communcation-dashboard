@@ -6,7 +6,7 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   // Make sure we use root-relative paths for assets
-  base: '/',
+  base: process.env.NODE_ENV === 'production' ? '/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -19,8 +19,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy API requests to our local proxy server
-      '/api': {
+      // Proxy all API requests to our local proxy server
+      '^/(api|bpp)': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,

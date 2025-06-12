@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"node server.cjs\"",
-    "build": "tsc -b && vite build",
-    "vercel-build": "tsc -b && vite build",
+    "build": "tsc && vite build",
+    "vercel-build": "tsc && vite build",
     "server": "node server.cjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test-clickhouse": "node test-clickhouse.js",
-    "build:ts": "tsc -b",
+    "build:ts": "tsc",
     "test-clickhouse-direct": "node test-clickhouse-direct.js"
   },
   "engines": {

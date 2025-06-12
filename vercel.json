@@ -2,51 +2,34 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.cjs",
-      "use": "@vercel/node"
-    },
-    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "buildCommand": "npm run vercel-build",
-        "distDir": "dist"
+        "buildCommand": "npm run build",
+        "distDir": "dist",
+        "installCommand": "npm install"
       }
+    },
+    {
+      "src": "api/download-data.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/server.cjs"
-    },
-    {
       "src": "/assets/(.*)",
-      "dest": "/dist/assets/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/dist/favicon.ico"
-    },
-    {
-      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico|json)$",
-      "dest": "/dist/$1.$2"
-    },
-    {
-      "src": "^/$",
-      "status": 308,
       "headers": {
-        "Location": "/login"
-      }
+        "cache-control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/api/download-data",
+      "dest": "/api/download-data.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/index.html",
-      "headers": {
-        "Cache-Control": "no-cache, no-store, must-revalidate"
-      }
+      "dest": "/index.html"
     }
-  ],
-  "github": {
-    "silent": true
-  }
+  ]
 } 
