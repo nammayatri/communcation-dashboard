@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Secrets — never commit real credentials
+.env
+.env.*
+!.env.example
